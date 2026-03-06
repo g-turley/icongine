@@ -78,6 +78,7 @@ All options can be set in `pubspec.yaml`. CLI flags override the matching
 | `input_dir` | `assets/icons` | Directory containing source SVG files. |
 | `output_font` | `assets/fonts/icons.otf` | Generated font output path. |
 | `output_class` | `lib/app_icons.dart` | Generated Dart API output path. |
+| `font_package` | unset | Optional Flutter package name to use when the generated font is bundled by a dependency instead of the local app. |
 | `font_format` | `otf` | Font format: `otf` or `ttf`. |
 | `include_subdirs` | `false` | Recurse into nested icon directories. |
 | `prefix_with_subdir` | `false` | Prefix generated icon names with relative subdirectory names. |
@@ -94,6 +95,8 @@ icongine:
   input_dir: assets/icons
   output_font: assets/fonts/icons.otf
   output_class: lib/app_icons.dart
+  # Set only when the generated font lives in a dependency package.
+  # font_package: my_icon_package
   include_subdirs: true
   prefix_with_subdir: false
   normalize: false

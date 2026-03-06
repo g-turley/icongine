@@ -1,9 +1,11 @@
 import 'config.dart';
 import 'font_format.dart';
 
+/// Parses `pubspec.yaml` input into a [GenerationConfig].
 class GenerationConfigParser {
   const GenerationConfigParser();
 
+  /// Reads the `icongine` section from a decoded pubspec map.
   GenerationConfig parsePubspec(Map<String, Object?> pubspec) {
     final packageName = _read<String>(pubspec, 'name') ?? 'icongine_app';
     final section = _readMap(pubspec, 'icongine') ?? const <String, Object?>{};
@@ -32,6 +34,11 @@ class GenerationConfigParser {
         'outClassFile',
       ], 'lib/app_icons.dart'),
       className: className,
+      fontPackage: _readAliasedNullableString(
+        section,
+        'font_package',
+        'fontPackage',
+      ),
       includeSubdirs: _readAliased(
         section,
         'include_subdirs',
@@ -74,6 +81,20 @@ class GenerationConfigParser {
     T fallback,
   ) {
     return _read<T>(map, snake) ?? _read<T>(map, camel) ?? fallback;
+  }
+
+  String? _readAliasedNullableString(
+    Map<String, Object?> map,
+    String snake,
+    String camel,
+  ) {
+    final value = _read<String>(map, snake) ?? _read<String>(map, camel);
+    if (value == null) {
+      return null;
+    }
+
+    final trimmedValue = value.trim();
+    return trimmedValue.isEmpty ? null : value;
   }
 
   T _readAliasedKeys<T>(

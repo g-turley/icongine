@@ -1,6 +1,6 @@
 name: icongine
 description: "Generate icon fonts and typed IconData APIs from assets."
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/g-turley/icongine
 repository: https://github.com/g-turley/icongine
 

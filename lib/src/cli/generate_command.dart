@@ -4,6 +4,7 @@ import 'package:yaml/yaml.dart';
 
 import '../../icongine.dart';
 
+/// CLI or programmatic overrides applied on top of pubspec configuration.
 class GenerateConfigOverrides {
   const GenerateConfigOverrides({
     this.inputDir,
@@ -31,6 +32,7 @@ class GenerateConfigOverrides {
   final bool? staticIconProvider;
   final bool? generateIconMap;
 
+  /// Whether no override values were provided.
   bool get isEmpty =>
       inputDir == null &&
       outFontFile == null &&
@@ -44,6 +46,7 @@ class GenerateConfigOverrides {
       staticIconProvider == null &&
       generateIconMap == null;
 
+  /// Returns a new config with override values applied to [baseConfig].
   GenerationConfig applyTo(GenerationConfig baseConfig) {
     return GenerationConfig(
       packageName: baseConfig.packageName,
@@ -51,6 +54,7 @@ class GenerateConfigOverrides {
       outFontFile: outFontFile ?? baseConfig.outFontFile,
       outClassFile: outClassFile ?? baseConfig.outClassFile,
       className: className ?? baseConfig.className,
+      fontPackage: baseConfig.fontPackage,
       includeSubdirs: includeSubdirs ?? baseConfig.includeSubdirs,
       prefixWithSubdir: prefixWithSubdir ?? baseConfig.prefixWithSubdir,
       fontFormat: fontFormat ?? baseConfig.fontFormat,
@@ -63,10 +67,12 @@ class GenerateConfigOverrides {
   }
 }
 
+/// Abstraction for running icon generation from a resolved config.
 abstract interface class GenerationRunner {
   Future<GenerationReport> run(GenerationConfig config);
 }
 
+/// Production runner that executes the default generation pipeline.
 class PipelineGenerationRunner implements GenerationRunner {
   const PipelineGenerationRunner();
 
@@ -76,6 +82,7 @@ class PipelineGenerationRunner implements GenerationRunner {
   }
 }
 
+/// Command entry point for loading configuration and invoking generation.
 class GenerateIconsCommand {
   const GenerateIconsCommand({
     this.configParser = const GenerationConfigParser(),
@@ -85,6 +92,7 @@ class GenerateIconsCommand {
   final GenerationConfigParser configParser;
   final GenerationRunner runner;
 
+  /// Resolves configuration from [pubspecPath] and optional [overrides].
   Future<GenerationConfig> resolveConfig({
     String pubspecPath = 'pubspec.yaml',
     GenerateConfigOverrides overrides = const GenerateConfigOverrides(),
@@ -104,6 +112,7 @@ class GenerateIconsCommand {
     return overrides.applyTo(parsedConfig);
   }
 
+  /// Runs icon generation using the resolved configuration.
   Future<GenerationReport> run({
     String pubspecPath = 'pubspec.yaml',
     GenerateConfigOverrides overrides = const GenerateConfigOverrides(),

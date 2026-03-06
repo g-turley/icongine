@@ -44,7 +44,7 @@ void main() {
 
       expect(config.packageName, 'sample_pkg');
       expect(config.fontFamily, 'AppIcons');
-      expect(config.fontPackage, 'AppIcons');
+      expect(config.fontPackage, isNull);
       expect(config.inputDir, 'assets/icons');
       expect(config.outFontFile, 'assets/fonts/icons.otf');
       expect(config.outClassFile, 'lib/app_icons.dart');
@@ -62,7 +62,17 @@ void main() {
       });
 
       expect(config.fontFamily, 'Example Icons');
-      expect(config.fontPackage, 'Example Icons');
+      expect(config.fontPackage, isNull);
+    });
+
+    test('reads explicit font package when configured', () {
+      final config = parser.parsePubspec({
+        'name': 'sample_pkg',
+        'icongine': {'name': 'Example Icons', 'font_package': 'sample_pkg'},
+      });
+
+      expect(config.fontFamily, 'Example Icons');
+      expect(config.fontPackage, 'sample_pkg');
     });
 
     test('accepts camelCase keys for supported fields', () {

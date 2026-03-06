@@ -23,7 +23,7 @@ import 'package:flutter/widgets.dart';
 class ExampleIcons {
   const ExampleIcons._();
   static const String fontFamily = 'ExampleIcons';
-  static const String fontPackage = 'ExampleIcons';
+  static const String? fontPackage = null;
 
   /// Font icon named `accessibilityOutline`.
   ///

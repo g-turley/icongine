@@ -5,6 +5,7 @@ import '../../domain/icon_symbol.dart';
 import 'compile.dart';
 import 'flutter_icon_class_generator.dart';
 
+/// Summary of files written by the emit step.
 class IconEmitResult {
   const IconEmitResult({
     required this.fontOutputPath,
@@ -12,12 +13,19 @@ class IconEmitResult {
     required this.emittedSymbolCount,
   });
 
+  /// Output path for the generated font file, if one was written.
   final String? fontOutputPath;
+
+  /// Output path for the generated Dart icon class.
   final String classOutputPath;
+
+  /// Number of symbols emitted into the output artifacts.
   final int emittedSymbolCount;
 }
 
+/// Persists compile output into files or other targets.
 abstract interface class IconEmitter {
+  /// Emits [compileResult] for [symbols] using [config].
   IconEmitResult emit({
     required GenerationConfig config,
     required List<IconSymbol> symbols,
@@ -25,6 +33,7 @@ abstract interface class IconEmitter {
   });
 }
 
+/// Lightweight emitter used by tests when file output is unnecessary.
 class StubIconEmitter implements IconEmitter {
   const StubIconEmitter();
 
@@ -42,11 +51,13 @@ class StubIconEmitter implements IconEmitter {
   }
 }
 
+/// File-based emitter that writes the font file and generated icon class.
 class FileIconEmitter implements IconEmitter {
   const FileIconEmitter({
     this.classGenerator = const FlutterIconClassGenerator(),
   });
 
+  /// Code generator used for the Dart icon class output.
   final FlutterIconClassGenerator classGenerator;
 
   @override

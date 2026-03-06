@@ -1,4 +1,6 @@
+/// Naming helpers used to convert SVG file names into Dart-safe identifiers.
 extension CaseExt on String {
+  /// Converts the receiver into lowerCamelCase.
   String toLowerCamel() {
     final words = _words();
     if (words.isEmpty) {
@@ -11,6 +13,7 @@ extension CaseExt on String {
     return value;
   }
 
+  /// Converts the receiver into UpperCamelCase.
   String toUpperCamel() {
     final words = _words();
     if (words.isEmpty) {

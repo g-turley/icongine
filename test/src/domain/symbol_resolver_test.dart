@@ -109,46 +109,40 @@ void main() {
       },
     );
 
-    test(
-      'reports error when path-based name resolves to all identifier '
-      'and generateIconMap is enabled',
-      () {
-        final files = const [
-          IconFile(absolutePath: '/tmp/all.svg', relativePath: 'all.svg'),
-        ];
+    test('reports error when path-based name resolves to all identifier '
+        'and generateIconMap is enabled', () {
+      final files = const [
+        IconFile(absolutePath: '/tmp/all.svg', relativePath: 'all.svg'),
+      ];
 
-        final result = resolver.resolveWithDiagnostics(
-          files: files,
-          prefixWithSubdir: false,
-          additionalReserved: const {'all'},
-        );
+      final result = resolver.resolveWithDiagnostics(
+        files: files,
+        prefixWithSubdir: false,
+        additionalReserved: const {'all'},
+      );
 
-        final issue = result.issues.singleWhere(
-          (item) => item.code == 'reserved_identifier',
-        );
-        expect(issue.severity, NamingIssueSeverity.error);
-        expect(issue.message, contains('reserved name "all"'));
-      },
-    );
+      final issue = result.issues.singleWhere(
+        (item) => item.code == 'reserved_identifier',
+      );
+      expect(issue.severity, NamingIssueSeverity.error);
+      expect(issue.message, contains('reserved name "all"'));
+    });
 
-    test(
-      'allows all identifier when generateIconMap is disabled',
-      () {
-        final files = const [
-          IconFile(absolutePath: '/tmp/all.svg', relativePath: 'all.svg'),
-        ];
+    test('allows all identifier when generateIconMap is disabled', () {
+      final files = const [
+        IconFile(absolutePath: '/tmp/all.svg', relativePath: 'all.svg'),
+      ];
 
-        final result = resolver.resolveWithDiagnostics(
-          files: files,
-          prefixWithSubdir: false,
-        );
+      final result = resolver.resolveWithDiagnostics(
+        files: files,
+        prefixWithSubdir: false,
+      );
 
-        expect(
-          result.issues.where((item) => item.code == 'reserved_identifier'),
-          isEmpty,
-        );
-      },
-    );
+      expect(
+        result.issues.where((item) => item.code == 'reserved_identifier'),
+        isEmpty,
+      );
+    });
 
     test('reports error when path-based name normalizes to an empty name', () {
       final files = const [

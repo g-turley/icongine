@@ -2,12 +2,14 @@ import 'package:args/args.dart';
 
 import '../../icongine.dart';
 
+/// Function signature used to invoke the generate command.
 typedef GenerateRunner =
     Future<GenerationReport> Function({
       required String pubspecPath,
       required GenerateConfigOverrides overrides,
     });
 
+/// Function signature used to invoke the shape debug command.
 typedef ShapeDebugRunner =
     int Function(
       List<String> args, {
@@ -15,6 +17,7 @@ typedef ShapeDebugRunner =
       required void Function(String line) stderrWriteln,
     });
 
+/// Top-level CLI facade for generation and debug commands.
 class IcongineCli {
   IcongineCli({GenerateRunner? runGenerate, ShapeDebugRunner? runShapeDebug})
     : _runGenerate = runGenerate ?? _defaultRunGenerate,
@@ -45,6 +48,7 @@ class IcongineCli {
     );
   }
 
+  /// Runs the CLI for the provided raw [args].
   Future<int> run(
     List<String> args, {
     required void Function(String line) stdoutWriteln,

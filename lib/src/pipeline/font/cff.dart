@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'type2_charstring_encoder.dart';
 
+/// Bounding metrics used when building a glyph program in the CFF table.
 class CffGlyphMetrics {
   const CffGlyphMetrics({
     this.xMin = 0,
@@ -10,12 +11,20 @@ class CffGlyphMetrics {
     required this.yMax,
   });
 
+  /// Minimum X coordinate of the glyph bounds.
   final int xMin;
+
+  /// Minimum Y coordinate of the glyph bounds.
   final int yMin;
+
+  /// Maximum X coordinate of the glyph bounds.
   final int xMax;
+
+  /// Maximum Y coordinate of the glyph bounds.
   final int yMax;
 }
 
+/// Input payload used by [CffEncoder] to build a minimal CFF table.
 class CffBuildInput {
   const CffBuildInput({
     required this.familyName,
@@ -23,25 +32,35 @@ class CffBuildInput {
     required this.glyphNames,
   });
 
+  /// PostScript font family name stored in the CFF name index.
   final String familyName;
+
+  /// Glyph metrics, excluding the implicit `.notdef` glyph.
   final List<CffGlyphMetrics> glyphs;
+
+  /// Glyph names paired with [glyphs].
   final List<String> glyphNames;
 }
 
+/// Strategy for generating Type 2 charstrings for CFF glyphs.
 abstract interface class CffGlyphProgramStrategy {
+  /// Builds the program for the required `.notdef` glyph.
   Uint8List buildNotdefProgram();
 
+  /// Builds the program for a glyph at [glyphIndex].
   Uint8List buildGlyphProgram({
     required int glyphIndex,
     required CffGlyphMetrics glyph,
   });
 }
 
+/// Simple fallback strategy that emits a rectangle from glyph metrics.
 class MetricsRectGlyphProgramStrategy implements CffGlyphProgramStrategy {
   const MetricsRectGlyphProgramStrategy({
     this.encoder = const Type2CharstringEncoder(),
   });
 
+  /// Number encoder used to write Type 2 charstrings.
   final Type2CharstringEncoder encoder;
 
   @override
@@ -96,13 +115,16 @@ class EmptyGlyphProgramStrategy implements CffGlyphProgramStrategy {
   }
 }
 
+/// Encodes glyph metadata into a Compact Font Format table.
 class CffEncoder {
   const CffEncoder({
     this.glyphProgramStrategy = const MetricsRectGlyphProgramStrategy(),
   });
 
+  /// Strategy used to generate charstrings for each glyph.
   final CffGlyphProgramStrategy glyphProgramStrategy;
 
+  /// Encodes a complete CFF payload for [input].
   Uint8List encode(CffBuildInput input) {
     final numGlyphs = input.glyphs.length + 1; // include .notdef
     final glyphNames = input.glyphNames.length == input.glyphs.length

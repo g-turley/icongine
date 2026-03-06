@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import '../../icongine.dart';
 import '../pipeline/svg/contour_flattener.dart';
 
+/// CLI command that inspects how a single SVG shape compiles.
 class ShapeDebugCommand {
   const ShapeDebugCommand();
 

@@ -51,7 +51,7 @@ void main() {
       expect(config.fontFamily, 'Example Icons');
     });
 
-    test('defaults fontPackage to fontFamily (className)', () {
+    test('defaults fontPackage to null for app-local fonts', () {
       final config = GenerationConfig(
         packageName: 'sample_pkg',
         inputDir: 'assets/icons',
@@ -59,7 +59,19 @@ void main() {
         outClassFile: 'lib/app_icons.dart',
       );
 
-      expect(config.fontPackage, 'AppIcons');
+      expect(config.fontPackage, isNull);
+    });
+
+    test('supports explicit fontPackage for package-distributed fonts', () {
+      final config = GenerationConfig(
+        packageName: 'sample_pkg',
+        inputDir: 'assets/icons',
+        outFontFile: 'assets/fonts/icons.otf',
+        outClassFile: 'lib/app_icons.dart',
+        fontPackage: 'sample_pkg',
+      );
+
+      expect(config.fontPackage, 'sample_pkg');
     });
 
     test('throws for empty inputDir', () {

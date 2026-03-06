@@ -10,23 +10,29 @@ import 'pipeline.dart';
 import 'step.dart';
 import 'state.dart';
 
+/// Builds the default end-to-end generation pipeline.
 class GenerationPipelineBuilder {
   GenerationPipelineBuilder()
     : _steps = [const DiscoverStep(), const CompileStep(), const EmitStep()];
 
   final List<GenerationStep> _steps;
 
+  /// Creates a ready-to-run pipeline runner with the default steps.
   GenerationPipelineRunner build() =>
       GenerationPipelineRunner(pipeline: GenerationPipeline(_steps));
 }
 
+/// Pipeline step that scans SVG files and resolves symbol names.
 class DiscoverStep implements GenerationStep {
   const DiscoverStep({
     this.scan = const FileIconScan(),
     this.symbolResolver = const SymbolResolver(),
   });
 
+  /// Source scanner used to discover SVG files.
   final IconScan scan;
+
+  /// Resolver used to convert file paths into unique symbols.
   final SymbolResolver symbolResolver;
 
   @override
@@ -65,9 +71,11 @@ class DiscoverStep implements GenerationStep {
   }
 }
 
+/// Pipeline step that compiles resolved symbols into glyphs and font bytes.
 class CompileStep implements GenerationStep {
   const CompileStep({this.compiler = const SvgFontCompiler()});
 
+  /// Compiler used to transform symbols into a font artifact.
   final IconCompiler compiler;
 
   @override
@@ -86,9 +94,11 @@ class CompileStep implements GenerationStep {
   }
 }
 
+/// Pipeline step that writes generated outputs to disk.
 class EmitStep implements GenerationStep {
   const EmitStep({this.emitter = const FileIconEmitter()});
 
+  /// Emitter used to persist the font file and generated Dart API.
   final IconEmitter emitter;
 
   @override

@@ -39,7 +39,7 @@ icongine:
       expect(runner.capturedConfig, isNotNull);
       expect(runner.capturedConfig!.packageName, 'sample_pkg');
       expect(runner.capturedConfig!.fontFamily, 'Example Icons');
-      expect(runner.capturedConfig!.fontPackage, 'Example Icons');
+      expect(runner.capturedConfig!.fontPackage, isNull);
       expect(runner.capturedConfig!.fontFormat, FontFormat.otf);
       expect(runner.capturedConfig!.normalize, isFalse);
       expect(runner.capturedConfig!.verbose, isFalse);
@@ -89,7 +89,7 @@ icongine:
       expect(runner.capturedConfig, isNotNull);
       expect(runner.capturedConfig!.inputDir, 'assets/cli_icons');
       expect(runner.capturedConfig!.fontFamily, 'PubspecIcons');
-      expect(runner.capturedConfig!.fontPackage, 'PubspecIcons');
+      expect(runner.capturedConfig!.fontPackage, isNull);
       expect(runner.capturedConfig!.fontFormat, FontFormat.ttf);
       expect(runner.capturedConfig!.outFontFile, 'assets/fonts/cli.ttf');
       expect(runner.capturedConfig!.normalize, isFalse);

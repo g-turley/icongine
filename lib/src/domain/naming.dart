@@ -5,13 +5,16 @@ import 'icon_file.dart';
 import 'icon_symbol.dart';
 import 'naming_diagnostics.dart';
 
+/// Converts discovered icon file paths into symbol names.
 abstract interface class IconNamer {
+  /// Returns the generated symbol name for [relativePath].
   String symbolFor({
     required String relativePath,
     required bool prefixWithSubdir,
   });
 }
 
+/// Default [IconNamer] that derives symbols from file names and paths.
 class PathNamer implements IconNamer {
   const PathNamer();
 
@@ -31,11 +34,14 @@ class PathNamer implements IconNamer {
   }
 }
 
+/// Resolves unique icon names and reports naming diagnostics.
 class SymbolResolver {
   const SymbolResolver({this.namer = const PathNamer()});
 
+  /// Naming strategy used to derive the base symbol name.
   final IconNamer namer;
 
+  /// Resolves unique symbols without returning diagnostics.
   List<IconSymbol> resolve({
     required List<IconFile> files,
     required bool prefixWithSubdir,
@@ -48,6 +54,7 @@ class SymbolResolver {
     ).symbols;
   }
 
+  /// Resolves unique symbols together with warnings and errors.
   SymbolResolutionResult resolveWithDiagnostics({
     required List<IconFile> files,
     required bool prefixWithSubdir,

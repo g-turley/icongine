@@ -16,7 +16,7 @@ class FlutterIconClassGenerator {
   String generate({
     required String className,
     required String fontFamily,
-    required String fontPackage,
+    required String? fontPackage,
     required String outFontFile,
     required List<FontGlyph> glyphs,
     required bool staticIconProvider,
@@ -57,7 +57,8 @@ class FlutterIconClassGenerator {
       ..writeln('  const $className._();')
       ..writeln("  static const String fontFamily = '$fontFamily';")
       ..writeln(
-        "  static const String fontPackage = '${_escapeSingleQuoted(fontPackage)}';",
+        '  static const String? fontPackage = '
+        '${_asDartStringLiteral(fontPackage)};',
       );
 
     for (final glyph in glyphs) {
@@ -103,6 +104,13 @@ class FlutterIconClassGenerator {
 
   String _escapeSingleQuoted(String value) {
     return value.replaceAll("'", r"\'");
+  }
+
+  String _asDartStringLiteral(String? value) {
+    if (value == null) {
+      return 'null';
+    }
+    return "'${_escapeSingleQuoted(value)}'";
   }
 }
 

@@ -66,7 +66,7 @@ void main() {
       );
       expect(
         classFile.readAsStringSync(),
-        contains("static const String fontPackage = 'AppIcons';"),
+        contains('static const String? fontPackage = null;'),
       );
       expect(
         classFile.readAsStringSync(),
@@ -96,7 +96,7 @@ void main() {
       expect(result.classOutputPath, config.outClassFile);
     });
 
-    test('uses className (fontFamily) for generated font package', () {
+    test('emits null font package for app-local fonts by default', () {
       const emitter = FileIconEmitter();
 
       final config = GenerationConfig(
@@ -128,7 +128,44 @@ void main() {
       final classFile = File(config.outClassFile);
       expect(
         classFile.readAsStringSync(),
-        contains("static const String fontPackage = 'AppIcons';"),
+        contains('static const String? fontPackage = null;'),
+      );
+    });
+
+    test('uses configured font package for package-distributed fonts', () {
+      const emitter = FileIconEmitter();
+
+      final config = GenerationConfig(
+        packageName: 'sample',
+        inputDir: path.join(tempDir.path, 'icons'),
+        outFontFile: path.join(tempDir.path, 'out', 'icons.otf'),
+        outClassFile: path.join(tempDir.path, 'out', 'icons.dart'),
+        fontPackage: 'sample',
+      );
+
+      emitter.emit(
+        config: config,
+        symbols: const [
+          IconSymbol(
+            file: IconFile(
+              absolutePath: '/tmp/home.svg',
+              relativePath: 'home.svg',
+            ),
+            name: 'home',
+          ),
+        ],
+        compileResult: IconCompileResult(
+          fontBytes: Uint8List.fromList([1, 2, 3]),
+          fontFamily: 'sample',
+          compiledSymbolCount: 1,
+          glyphs: const [FontGlyph(name: 'home', codePoint: 0xe001)],
+        ),
+      );
+
+      final classFile = File(config.outClassFile);
+      expect(
+        classFile.readAsStringSync(),
+        contains("static const String? fontPackage = 'sample';"),
       );
     });
 

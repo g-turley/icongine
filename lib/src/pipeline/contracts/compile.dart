@@ -9,6 +9,7 @@ import '../font/formats/otf/writer.dart';
 import '../font/formats/ttf/writer.dart';
 import 'glyph_compilation_facade.dart';
 
+/// Result of compiling resolved symbols into glyphs and font bytes.
 class IconCompileResult {
   const IconCompileResult({
     required this.fontBytes,
@@ -19,21 +20,35 @@ class IconCompileResult {
     this.normalizationModifiedGlyphNames = const [],
   });
 
+  /// Encoded font bytes produced by the selected [FontWriter].
   final Uint8List fontBytes;
+
+  /// Font family name associated with the generated font.
   final String fontFamily;
+
+  /// Number of symbols that were compiled.
   final int compiledSymbolCount;
+
+  /// Compiled glyphs used by downstream emitters and writers.
   final List<FontGlyph> glyphs;
+
+  /// Warnings raised while normalizing mixed-size source glyphs.
   final List<String> normalizationWarnings;
+
+  /// Glyph names whose geometry changed during normalization.
   final List<String> normalizationModifiedGlyphNames;
 }
 
+/// Compiles resolved symbols into a concrete font artifact.
 abstract interface class IconCompiler {
+  /// Compiles [symbols] using [config].
   IconCompileResult compile({
     required GenerationConfig config,
     required List<IconSymbol> symbols,
   });
 }
 
+/// Minimal compiler used by tests and dry-run flows.
 class StubIconCompiler implements IconCompiler {
   const StubIconCompiler();
 
@@ -53,14 +68,20 @@ class StubIconCompiler implements IconCompiler {
   }
 }
 
+/// Production compiler that builds glyphs and writes the font bytes.
 class SvgFontCompiler implements IconCompiler {
   const SvgFontCompiler({
     this.fontWriterFactory = const FontWriterFactory(),
     this.glyphCompilationFacade = const SvgGlyphCompilationFacade(),
   });
 
+  /// Code point assigned to the first generated glyph.
   static const _startCodePoint = 0xe001;
+
+  /// Factory used to choose the correct font writer for the config.
   final FontWriterFactory fontWriterFactory;
+
+  /// Facade that converts SVG symbols into font glyph geometry.
   final GlyphCompilationFacade glyphCompilationFacade;
 
   @override
@@ -196,17 +217,24 @@ class _NormalizationDiagnostics {
   final List<String> modifiedGlyphNames;
 }
 
+/// Width and height extracted from an SVG source document.
 class SvgBounds {
   const SvgBounds({required this.width, required this.height});
 
+  /// Width of the source SVG in user units.
   final double width;
+
+  /// Height of the source SVG in user units.
   final double height;
 }
 
+/// Extracts source bounds from raw SVG markup.
 abstract interface class SvgBoundsExtractor {
+  /// Returns the source bounds for [svgContent].
   SvgBounds extract(String svgContent);
 }
 
+/// Default SVG bounds extractor based on `viewBox` or width/height attributes.
 class DefaultSvgBoundsExtractor implements SvgBoundsExtractor {
   const DefaultSvgBoundsExtractor();
 
