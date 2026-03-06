@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:math' as math;
 
-import '../svg/contour.dart';
+import '../contour/contour.dart';
 import 'cff.dart';
 import 'type2_charstring_encoder.dart';
 

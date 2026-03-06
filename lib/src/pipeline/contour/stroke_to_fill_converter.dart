@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
 import 'contour.dart';
-import 'document.dart';
 import 'stroke_outline_assembler.dart';
 import 'stroke_polyline_tagger.dart';
+import 'stroke_style.dart';
 
 /// Converts stroked SVG paths into equivalent filled outlines by expanding
 /// the path perpendicular to its direction by half the stroke width on each

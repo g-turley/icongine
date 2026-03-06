@@ -1,10 +1,10 @@
 # icongine
 
-`icongine` generates icon fonts and typed `IconData` APIs from SVG assets.
+`icongine` generates icon fonts and typed `IconData` APIs from SVG and PNG assets.
 
 It is built for repeatable Flutter icon pipelines:
 
-- Generates OTF or TTF icon fonts from a folder of SVG files
+- Generates OTF or TTF icon fonts from a folder of SVG or PNG files
 - Produces a typed Dart API with one icon constant per glyph
 - Optionally generates an `all` map for searchable icon catalogs
 - Adds per-glyph SVG preview docs to the generated API
@@ -63,8 +63,8 @@ class DemoIcon extends StatelessWidget {
 ## How it works
 
 1. Reads the `icongine` section from `pubspec.yaml`.
-2. Scans SVG files from `input_dir`.
-3. Converts supported SVG geometry into font glyphs.
+2. Scans supported icon source files from `input_dir`.
+3. Converts supported SVG geometry or PNG alpha masks into font glyphs.
 4. Writes the font file and a generated Dart icon class.
 
 ## Configuration
@@ -75,7 +75,7 @@ All options can be set in `pubspec.yaml`. CLI flags override the matching
 | Option | Default | Description |
 | --- | --- | --- |
 | `name` | `AppIcons` | Generated Dart class name and font family. |
-| `input_dir` | `assets/icons` | Directory containing source SVG files. |
+| `input_dir` | `assets/icons` | Directory containing source SVG or PNG files. |
 | `output_font` | `assets/fonts/icons.otf` | Generated font output path. |
 | `output_class` | `lib/app_icons.dart` | Generated Dart API output path. |
 | `font_package` | unset | Optional Flutter package name to use when the generated font is bundled by a dependency instead of the local app. |
@@ -155,6 +155,19 @@ When normalization is enabled and the source SVG dimensions differ, `icongine`
 prints a warning with the chosen source reference size and output coordinate
 system. If `verbose` is enabled, it also reports which glyphs were modified.
 
+## PNG support
+
+PNG input is supported for monochrome-style source art with transparency:
+
+- Opaque or semi-opaque pixels are treated as filled geometry.
+- Raster fills are converted into merged pixel-aligned rectangles before font compilation.
+- Transparent pixels are ignored.
+- A resolution of 512x512 is recommended, but depending on your icon a lower resolution may still produce satisfactory results.
+
+PNG sources work best for crisp silhouette assets with transparent backgrounds.
+Because fonts are vector outlines, raster antialiasing is not preserved, and
+low-resolution PNGs will produce visibly blocky glyphs.
+
 ## Programmatic usage
 
 For tool integrations or custom orchestration, call the command layer directly:
@@ -191,6 +204,7 @@ Legend: ✅ fully supported, ⚠️ partially supported, ❌ not supported
 ## Known limitations
 
 - Output glyphs are monochrome geometry, so color, gradients, and similar paint effects are not preserved.
+- PNG input is alpha-thresholded into pixel-aligned geometry rather than bezier-traced outlines.
 - Units are treated numerically for supported attributes; advanced CSS unit semantics are not fully modeled.
 - Stroke expansion is geometric approximation, so tiny visual differences from the source SVG can occur.
 - SVG features that depend on rendering effects instead of explicit paths should be converted to paths before running `icongine`.

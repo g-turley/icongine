@@ -60,22 +60,19 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  assets:
-    - assets/svg/
-
   fonts:
     - family: ExampleIcons
       fonts:
         - asset: assets/fonts/example_icons.otf
 
 icongine:
-  input_dir: assets/svg
+  input_dir: assets/icons
   output_font: assets/fonts/example_icons.otf
   output_class: lib/generated/example_icons.dart
   name: ExampleIcons
   font_format: otf
   include_subdirs: true
-  prefix_with_subdir: false
+  prefix_with_subdir: true
   normalize: false
   static_icon_provider: true
   generate_icon_map: true

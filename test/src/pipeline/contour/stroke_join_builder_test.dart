@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
-import 'package:icongine/src/pipeline/svg/stroke_join_builder.dart';
+import 'package:icongine/src/pipeline/contour/stroke_join_builder.dart';
 
 // stroke_join_builder.dart uncovered lines:
 // 92-107:  isCorner=false, tangentLength < 1e-8 (antiparallel dirs) fallback

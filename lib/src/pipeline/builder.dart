@@ -22,14 +22,14 @@ class GenerationPipelineBuilder {
       GenerationPipelineRunner(pipeline: GenerationPipeline(_steps));
 }
 
-/// Pipeline step that scans SVG files and resolves symbol names.
+/// Pipeline step that scans supported icon source files and resolves symbols.
 class DiscoverStep implements GenerationStep {
   const DiscoverStep({
     this.scan = const FileIconScan(),
     this.symbolResolver = const SymbolResolver(),
   });
 
-  /// Source scanner used to discover SVG files.
+  /// Source scanner used to discover icon source files.
   final IconScan scan;
 
   /// Resolver used to convert file paths into unique symbols.

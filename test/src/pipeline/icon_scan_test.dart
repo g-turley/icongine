@@ -18,12 +18,13 @@ void main() {
       }
     });
 
-    test('lists only svg files in deterministic path order', () async {
+    test('lists supported icon files in deterministic path order', () async {
       final root = Directory(path.join(tempDir.path, 'icons'));
       await root.create(recursive: true);
 
       await File(path.join(root.path, 'zeta.svg')).writeAsString('<svg/>');
       await File(path.join(root.path, 'alpha.svg')).writeAsString('<svg/>');
+      await File(path.join(root.path, 'beta.png')).writeAsBytes([0]);
       await File(path.join(root.path, 'ignore.txt')).writeAsString('x');
 
       const scan = FileIconScan();
@@ -34,6 +35,7 @@ void main() {
 
       expect(files.map((file) => file.relativePath).toList(), [
         'alpha.svg',
+        'beta.png',
         'zeta.svg',
       ]);
     });

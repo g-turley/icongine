@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
-import 'package:icongine/src/pipeline/svg/contour_flattener.dart';
+import 'package:icongine/src/pipeline/contour/contour_flattener.dart';
 
 void main() {
   group('SvgToFontCoordinateTransformer', () {

@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'contour.dart';
-import 'document.dart';
+import 'stroke_style.dart';
 import 'svg_point_math.dart' as pt;
 
 /// The offset points produced at a single polyline vertex join.

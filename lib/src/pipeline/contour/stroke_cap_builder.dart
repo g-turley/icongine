@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'contour.dart';
-import 'document.dart';
+import 'stroke_style.dart';
 
 /// Builds stroke endpoint caps (butt, square, round).
 class StrokeCapBuilder {

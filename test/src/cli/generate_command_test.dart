@@ -38,6 +38,18 @@ icongine:
       expect(report.compiledSymbolCount, 1);
       expect(runner.capturedConfig, isNotNull);
       expect(runner.capturedConfig!.packageName, 'sample_pkg');
+      expect(
+        runner.capturedConfig!.inputDir,
+        path.join(tempDir.path, 'assets', 'custom_icons'),
+      );
+      expect(
+        runner.capturedConfig!.outFontFile,
+        path.join(tempDir.path, 'assets', 'fonts', 'custom.otf'),
+      );
+      expect(
+        runner.capturedConfig!.outClassFile,
+        path.join(tempDir.path, 'lib', 'custom_icons.dart'),
+      );
       expect(runner.capturedConfig!.fontFamily, 'Example Icons');
       expect(runner.capturedConfig!.fontPackage, isNull);
       expect(runner.capturedConfig!.fontFormat, FontFormat.otf);
@@ -53,8 +65,14 @@ icongine:
       final command = GenerateIconsCommand(runner: runner);
       await command.run(pubspecPath: pubspec.path);
 
-      expect(runner.capturedConfig!.inputDir, 'assets/icons');
-      expect(runner.capturedConfig!.outFontFile, 'assets/fonts/icons.otf');
+      expect(
+        runner.capturedConfig!.inputDir,
+        path.join(tempDir.path, 'assets', 'icons'),
+      );
+      expect(
+        runner.capturedConfig!.outFontFile,
+        path.join(tempDir.path, 'assets', 'fonts', 'icons.otf'),
+      );
       expect(runner.capturedConfig!.normalize, isFalse);
       expect(runner.capturedConfig!.verbose, isFalse);
     });
@@ -87,16 +105,46 @@ icongine:
       );
 
       expect(runner.capturedConfig, isNotNull);
-      expect(runner.capturedConfig!.inputDir, 'assets/cli_icons');
+      expect(
+        runner.capturedConfig!.inputDir,
+        path.join(tempDir.path, 'assets', 'cli_icons'),
+      );
       expect(runner.capturedConfig!.fontFamily, 'PubspecIcons');
       expect(runner.capturedConfig!.fontPackage, isNull);
       expect(runner.capturedConfig!.fontFormat, FontFormat.ttf);
-      expect(runner.capturedConfig!.outFontFile, 'assets/fonts/cli.ttf');
+      expect(
+        runner.capturedConfig!.outFontFile,
+        path.join(tempDir.path, 'assets', 'fonts', 'cli.ttf'),
+      );
       expect(runner.capturedConfig!.normalize, isFalse);
       expect(runner.capturedConfig!.verbose, isTrue);
       expect(runner.capturedConfig!.includeSubdirs, true);
       // Value not overridden should still come from pubspec.
       expect(runner.capturedConfig!.className, 'PubspecIcons');
+    });
+
+    test('keeps absolute override paths unchanged', () async {
+      final pubspec = File(path.join(tempDir.path, 'pubspec.yaml'));
+      await pubspec.writeAsString('name: sample_pkg');
+
+      final runner = _CaptureRunner();
+      final command = GenerateIconsCommand(runner: runner);
+      final absoluteInputDir = path.join(tempDir.path, 'external_icons');
+      final absoluteFontPath = path.join(tempDir.path, 'external.otf');
+      final absoluteClassPath = path.join(tempDir.path, 'external.dart');
+
+      await command.run(
+        pubspecPath: pubspec.path,
+        overrides: GenerateConfigOverrides(
+          inputDir: absoluteInputDir,
+          outFontFile: absoluteFontPath,
+          outClassFile: absoluteClassPath,
+        ),
+      );
+
+      expect(runner.capturedConfig!.inputDir, absoluteInputDir);
+      expect(runner.capturedConfig!.outFontFile, absoluteFontPath);
+      expect(runner.capturedConfig!.outClassFile, absoluteClassPath);
     });
 
     test('throws when pubspec root is not a YAML map', () async {

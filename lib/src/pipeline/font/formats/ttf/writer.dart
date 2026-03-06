@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import '../../font_glyph.dart';
 import '../../font_writer.dart';
 import '../../sfnt.dart';
-import '../../../svg/contour.dart';
-import '../../../svg/contour_flattener.dart';
+import '../../../contour/contour.dart';
+import '../../../contour/contour_flattener.dart';
 import '../otf/table_builders.dart';
 
 class TtfWriter implements FontWriter {

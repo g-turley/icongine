@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
 import 'contour.dart';
-import 'document.dart';
 import 'stroke_cap_builder.dart';
 import 'stroke_join_builder.dart';
 import 'stroke_polyline_tagger.dart';
+import 'stroke_style.dart';
 import 'svg_point_math.dart' as pt;
 
 /// Expands tagged polylines into closed stroke outline contours.

@@ -1,4 +1,4 @@
-import '../svg/contour.dart';
+import '../contour/contour.dart';
 
 /// Format-neutral glyph contract produced by compile and consumed by font writers.
 class FontGlyph {

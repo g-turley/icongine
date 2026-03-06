@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:image/image.dart' as image;
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
 
@@ -191,6 +192,67 @@ void main() {
       expect(sourceBounds.minY, closeTo(3.0, 0.2));
       expect(sourceBounds.maxX, closeTo(10.0, 0.2));
       expect(sourceBounds.maxY, closeTo(9.0, 0.2));
+    });
+
+    test('compiles PNG alpha masks into glyph contours', () {
+      final pngFile = File('${tempDir.path}/pixel_shape.png');
+      final rasterImage = image.Image(width: 4, height: 4, numChannels: 4);
+      for (var y = 0; y < rasterImage.height; y += 1) {
+        for (var x = 0; x < rasterImage.width; x += 1) {
+          rasterImage.setPixelRgba(x, y, 0, 0, 0, 0);
+        }
+      }
+      rasterImage.setPixelRgba(1, 1, 0, 0, 0, 255);
+      rasterImage.setPixelRgba(2, 1, 0, 0, 0, 255);
+      rasterImage.setPixelRgba(1, 2, 0, 0, 0, 255);
+      pngFile.writeAsBytesSync(image.encodePng(rasterImage));
+
+      final compiler = const SvgFontCompiler();
+      final result = compiler.compile(
+        config: GenerationConfig(
+          packageName: 'test',
+          inputDir: tempDir.path,
+          outFontFile: '${tempDir.path}/out.otf',
+          outClassFile: '${tempDir.path}/out.dart',
+          fontFormat: FontFormat.otf,
+          normalize: false,
+        ),
+        symbols: [
+          IconSymbol(
+            file: IconFile(
+              absolutePath: pngFile.absolute.path,
+              relativePath: 'pixel_shape.png',
+            ),
+            name: 'pixelShape',
+          ),
+        ],
+      );
+
+      final glyph = result.glyphs.single;
+      expect(glyph.sourceWidth, 4);
+      expect(glyph.sourceHeight, 4);
+      expect(glyph.sourceContourPath, isNotNull);
+      expect(glyph.sourceContourPath!.contours, hasLength(1));
+      expect(
+        glyph.sourceContourPath!.contours.single.segments.every(
+          (segment) =>
+              segment.type == SvgContourSegmentType.line ||
+              segment.type == SvgContourSegmentType.cubic,
+        ),
+        isTrue,
+      );
+      expect(
+        glyph.sourceContourPath!.contours.single.segments.any(
+          (segment) => segment.type == SvgContourSegmentType.quadratic,
+        ),
+        isFalse,
+      );
+
+      final sourceBounds = _boundsFromPath(glyph.sourceContourPath!);
+      expect(sourceBounds.minX, 1);
+      expect(sourceBounds.minY, 1);
+      expect(sourceBounds.maxX, 3);
+      expect(sourceBounds.maxY, 3);
     });
   });
 }

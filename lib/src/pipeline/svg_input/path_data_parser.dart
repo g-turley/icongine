@@ -1,4 +1,4 @@
-import 'contour.dart';
+import '../contour/contour.dart';
 
 /// Parses an SVG path `d` attribute string into a structured [SvgContourPath].
 ///

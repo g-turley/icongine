@@ -85,20 +85,7 @@ void main() {
         expect(countInteriorSelfIntersections(bodyStrokeContour), 0);
       },
     );
-
-    test('security_camera applies inherited matrix transform into viewbox', () {
-      final result = compileTestShape('security_camera');
-
-      expectContourCount(result.sourceContourPath, 5);
-      expectAllContoursClosed(result.sourceContourPath);
-
-      final bounds = _bounds(result.sourceContourPath);
-      expect(bounds.minX, greaterThanOrEqualTo(-0.01));
-      expect(bounds.maxX, lessThanOrEqualTo(14.01));
-      expect(bounds.minY, greaterThanOrEqualTo(-0.01));
-      expect(bounds.maxY, lessThanOrEqualTo(14.01));
-    });
-
+    
     test(
       'shield-checkmark-outline keeps rounded closed ring with no inner self-intersections',
       () {

@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
-import 'package:icongine/src/pipeline/svg/stroke_polyline_tagger.dart';
+import 'package:icongine/src/pipeline/contour/stroke_polyline_tagger.dart';
 
 // stroke_polyline_tagger.dart uncovered lines:
 // 272: _segmentTangentAtStart for line type (called via _isSmoothCurveJoin/hasSharpCurveToCurveJoin)

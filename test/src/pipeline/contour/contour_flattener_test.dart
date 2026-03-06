@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
-import 'package:icongine/src/pipeline/svg/contour_flattener.dart';
+import 'package:icongine/src/pipeline/contour/contour_flattener.dart';
 
 // contour_flattener.dart has these uncovered lines:
 // 55, 56, 57 - computeArcCenterParams: coincident endpoints return null

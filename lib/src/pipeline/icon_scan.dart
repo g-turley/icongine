@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import '../domain/icon_file.dart';
 
 abstract interface class IconScan {
+  /// Lists supported icon source files in [inputDir].
   List<IconFile> listSvgFiles({
     required String inputDir,
     required bool includeSubdirs,
@@ -24,15 +25,20 @@ class FileIconScan implements IconScan {
       return const [];
     }
 
-    final svgFiles =
+    const supportedExtensions = {'.svg', '.png'};
+    final sourceFiles =
         root
             .listSync(recursive: includeSubdirs)
             .whereType<File>()
-            .where((file) => path.extension(file.path).toLowerCase() == '.svg')
+            .where(
+              (file) => supportedExtensions.contains(
+                path.extension(file.path).toLowerCase(),
+              ),
+            )
             .toList()
           ..sort((left, right) => left.path.compareTo(right.path));
 
-    return svgFiles
+    return sourceFiles
         .map(
           (file) => IconFile(
             absolutePath: file.path,

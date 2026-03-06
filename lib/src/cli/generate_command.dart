@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart';
 
 import '../../icongine.dart';
@@ -109,7 +110,35 @@ class GenerateIconsCommand {
       pubspecMap[entry.key.toString()] = entry.value;
     }
     final parsedConfig = configParser.parsePubspec(pubspecMap);
-    return overrides.applyTo(parsedConfig);
+    final resolvedConfig = overrides.applyTo(parsedConfig);
+    final pubspecDirectory = pubspecFile.parent.path;
+    return GenerationConfig(
+      packageName: resolvedConfig.packageName,
+      inputDir: _resolvePathFromConfigDirectory(
+        configuredPath: resolvedConfig.inputDir,
+        configDirectory: pubspecDirectory,
+      ),
+      outFontFile: resolvedConfig.outFontFile == null
+          ? null
+          : _resolvePathFromConfigDirectory(
+              configuredPath: resolvedConfig.outFontFile!,
+              configDirectory: pubspecDirectory,
+            ),
+      outClassFile: _resolvePathFromConfigDirectory(
+        configuredPath: resolvedConfig.outClassFile,
+        configDirectory: pubspecDirectory,
+      ),
+      className: resolvedConfig.className,
+      fontPackage: resolvedConfig.fontPackage,
+      includeSubdirs: resolvedConfig.includeSubdirs,
+      prefixWithSubdir: resolvedConfig.prefixWithSubdir,
+      fontFormat: resolvedConfig.fontFormat,
+      glyphEmissionMode: resolvedConfig.glyphEmissionMode,
+      normalize: resolvedConfig.normalize,
+      verbose: resolvedConfig.verbose,
+      staticIconProvider: resolvedConfig.staticIconProvider,
+      generateIconMap: resolvedConfig.generateIconMap,
+    );
   }
 
   /// Runs icon generation using the resolved configuration.
@@ -122,5 +151,15 @@ class GenerateIconsCommand {
       overrides: overrides,
     );
     return runner.run(config);
+  }
+
+  String _resolvePathFromConfigDirectory({
+    required String configuredPath,
+    required String configDirectory,
+  }) {
+    if (configuredPath.trim().isEmpty || path.isAbsolute(configuredPath)) {
+      return configuredPath;
+    }
+    return path.normalize(path.join(configDirectory, configuredPath));
   }
 }

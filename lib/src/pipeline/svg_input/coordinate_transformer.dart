@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
-import 'contour.dart';
-import 'contour_flattener.dart';
+import '../contour/contour.dart';
+import '../contour/contour_flattener.dart';
 
 /// Transforms [SvgContourPath] coordinates from SVG viewport space
 /// (top-left origin, Y-axis pointing down) into font coordinate space

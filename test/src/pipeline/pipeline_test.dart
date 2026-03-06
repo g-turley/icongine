@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:image/image.dart' as image;
 import 'package:test/test.dart';
 import 'package:icongine/icongine.dart';
 import 'package:path/path.dart' as path;
@@ -50,6 +51,35 @@ void main() {
         expect(report.classOutputPath, path.join(outputDir.path, 'icons.dart'));
       },
     );
+
+    test('discovers PNG source files alongside SVG files', () async {
+      final inputDir = Directory(path.join(tempDir.path, 'icons'));
+      final outputDir = Directory(path.join(tempDir.path, 'out'));
+      await inputDir.create(recursive: true);
+      await outputDir.create(recursive: true);
+      await File(
+        path.join(inputDir.path, 'home.svg'),
+      ).writeAsString('<svg viewBox="0 0 24 24"></svg>');
+      final pngImage = image.Image(width: 1, height: 1, numChannels: 4);
+      pngImage.setPixelRgba(0, 0, 0, 0, 0, 255);
+      await File(
+        path.join(inputDir.path, 'pixel.png'),
+      ).writeAsBytes(image.encodePng(pngImage));
+
+      final runner = GenerationPipelineBuilder().build();
+
+      final report = await runner.run(
+        GenerationConfig(
+          packageName: 'sample',
+          inputDir: inputDir.path,
+          outFontFile: path.join(outputDir.path, 'icons.otf'),
+          outClassFile: path.join(outputDir.path, 'icons.dart'),
+        ),
+      );
+
+      expect(report.discoveredIconCount, 2);
+      expect(report.compiledSymbolCount, 2);
+    });
 
     test('pipeline runs steps in order', () async {
       final seen = <String>[];

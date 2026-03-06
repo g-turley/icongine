@@ -81,7 +81,7 @@ class SvgFontCompiler implements IconCompiler {
   /// Factory used to choose the correct font writer for the config.
   final FontWriterFactory fontWriterFactory;
 
-  /// Facade that converts SVG symbols into font glyph geometry.
+  /// Facade that converts supported source symbols into font glyph geometry.
   final GlyphCompilationFacade glyphCompilationFacade;
 
   @override

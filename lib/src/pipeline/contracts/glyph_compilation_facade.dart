@@ -1,15 +1,19 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:image/image.dart' as image;
+
 import '../../domain/icon_symbol.dart';
 import '../font/font_glyph.dart';
-import '../svg/contour.dart';
-import '../svg/coordinate_transformer.dart';
-import '../svg/document.dart';
-import '../svg/path_data_parser.dart';
-import '../svg/rect_clipper.dart';
-import '../svg/stroke_to_fill_converter.dart';
-import '../svg/winding_corrector.dart';
+import '../contour/contour.dart';
+import '../contour/raster_loop_smoother.dart';
+import '../contour/rect_clipper.dart';
+import '../contour/stroke_style.dart';
+import '../contour/stroke_to_fill_converter.dart';
+import '../contour/winding_corrector.dart';
+import '../svg_input/coordinate_transformer.dart';
+import '../svg_input/document.dart';
+import '../svg_input/path_data_parser.dart';
 import 'compile.dart';
 
 abstract interface class GlyphCompilationFacade {
@@ -30,6 +34,7 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
       contentScale: 0.92,
     ),
     this.rectClipper = const SvgRectClipper(),
+    this.rasterLoopSmoother = const RasterLoopSmoother(),
     this.strokeToFillConverter = const StrokeToFillConverter(),
     this.windingCorrector = const WindingCorrector(),
   });
@@ -39,6 +44,7 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
   final SvgPathDataParser pathDataParser;
   final SvgToFontCoordinateTransformer coordinateTransformer;
   final SvgRectClipper rectClipper;
+  final RasterLoopSmoother rasterLoopSmoother;
   final StrokeToFillConverter strokeToFillConverter;
   final WindingCorrector windingCorrector;
 
@@ -102,6 +108,15 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
   }
 
   _PreparedGlyph _prepareGlyph(IconSymbol symbol) {
+    final sourcePath = symbol.file.absolutePath;
+    if (_isPngSource(sourcePath)) {
+      return _preparePngGlyph(symbol);
+    }
+
+    return _prepareSvgGlyph(symbol);
+  }
+
+  _PreparedGlyph _prepareSvgGlyph(IconSymbol symbol) {
     final svgContent = File(symbol.file.absolutePath).readAsStringSync();
     final documentData = documentExtractor.extract(svgContent);
     final viewport = documentData.viewport;
@@ -177,6 +192,27 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
       sourceHeight: sourceHeight,
       sourceMinX: viewport?.minX ?? 0,
       sourceMinY: viewport?.minY ?? 0,
+    );
+  }
+
+  _PreparedGlyph _preparePngGlyph(IconSymbol symbol) {
+    final pngBytes = File(symbol.file.absolutePath).readAsBytesSync();
+    final decodedImage = image.decodePng(pngBytes);
+    if (decodedImage == null) {
+      throw StateError(
+        'Unable to decode PNG source: ${symbol.file.absolutePath}',
+      );
+    }
+
+    final rasterContourPath = _buildRasterContourPath(decodedImage);
+    return _PreparedGlyph(
+      symbol: symbol,
+      svgContent: '',
+      sourceContourPath: rasterContourPath,
+      sourceWidth: decodedImage.width.toDouble(),
+      sourceHeight: decodedImage.height.toDouble(),
+      sourceMinX: 0,
+      sourceMinY: 0,
     );
   }
 
@@ -402,6 +438,148 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     return (first.x - second.x).abs() < 1e-9 &&
         (first.y - second.y).abs() < 1e-9;
   }
+
+  bool _isPngSource(String sourcePath) {
+    return sourcePath.toLowerCase().endsWith('.png');
+  }
+
+  SvgContourPath _buildRasterContourPath(image.Image rasterImage) {
+    final mask = _buildRasterMask(rasterImage);
+    final boundaryEdges = _extractRasterBoundaryEdges(mask);
+    if (boundaryEdges.isEmpty) {
+      return const SvgContourPath(contours: []);
+    }
+
+    final tracedContours = _traceRasterLoops(boundaryEdges)
+        .map(rasterLoopSmoother.smooth)
+        .where((contour) => contour.segments.isNotEmpty)
+        .toList(growable: false);
+    return windingCorrector.correct(SvgContourPath(contours: tracedContours));
+  }
+
+  bool _isFilledPixel(image.Pixel pixel) {
+    return pixel.aNormalized >= 0.5;
+  }
+
+  List<List<bool>> _buildRasterMask(image.Image rasterImage) {
+    return List<List<bool>>.generate(
+      rasterImage.height,
+      (y) => List<bool>.generate(
+        rasterImage.width,
+        (x) => _isFilledPixel(rasterImage.getPixel(x, y)),
+        growable: false,
+      ),
+      growable: false,
+    );
+  }
+
+  List<_RasterEdge> _extractRasterBoundaryEdges(List<List<bool>> mask) {
+    final height = mask.length;
+    if (height == 0) {
+      return const [];
+    }
+    final width = mask.first.length;
+    final edges = <_RasterEdge>[];
+    var nextEdgeId = 0;
+
+    bool isFilledAt(int x, int y) {
+      if (y < 0 || y >= height || x < 0 || x >= width) {
+        return false;
+      }
+      return mask[y][x];
+    }
+
+    for (var y = 0; y < height; y += 1) {
+      for (var x = 0; x < width; x += 1) {
+        if (!mask[y][x]) {
+          continue;
+        }
+        if (!isFilledAt(x, y - 1)) {
+          edges.add(
+            _RasterEdge(
+              start: SvgPoint(x.toDouble(), y.toDouble()),
+              end: SvgPoint((x + 1).toDouble(), y.toDouble()),
+              id: nextEdgeId++,
+            ),
+          );
+        }
+        if (!isFilledAt(x + 1, y)) {
+          edges.add(
+            _RasterEdge(
+              start: SvgPoint((x + 1).toDouble(), y.toDouble()),
+              end: SvgPoint((x + 1).toDouble(), (y + 1).toDouble()),
+              id: nextEdgeId++,
+            ),
+          );
+        }
+        if (!isFilledAt(x, y + 1)) {
+          edges.add(
+            _RasterEdge(
+              start: SvgPoint((x + 1).toDouble(), (y + 1).toDouble()),
+              end: SvgPoint(x.toDouble(), (y + 1).toDouble()),
+              id: nextEdgeId++,
+            ),
+          );
+        }
+        if (!isFilledAt(x - 1, y)) {
+          edges.add(
+            _RasterEdge(
+              start: SvgPoint(x.toDouble(), (y + 1).toDouble()),
+              end: SvgPoint(x.toDouble(), y.toDouble()),
+              id: nextEdgeId++,
+            ),
+          );
+        }
+      }
+    }
+    return edges;
+  }
+
+  List<List<SvgPoint>> _traceRasterLoops(List<_RasterEdge> edges) {
+    final outgoingEdges = <String, List<_RasterEdge>>{};
+    for (final edge in edges) {
+      outgoingEdges.putIfAbsent(_pointKey(edge.start), () => []).add(edge);
+    }
+
+    final loops = <List<SvgPoint>>[];
+    final visitedEdgeIds = <int>{};
+    for (final edge in edges) {
+      if (visitedEdgeIds.contains(edge.id)) {
+        continue;
+      }
+
+      final loop = <SvgPoint>[edge.start];
+      var currentEdge = edge;
+      visitedEdgeIds.add(currentEdge.id);
+      loop.add(currentEdge.end);
+
+      while (!_pointsEqual(currentEdge.end, edge.start)) {
+        final candidates = outgoingEdges[_pointKey(currentEdge.end)];
+        if (candidates == null || candidates.isEmpty) {
+          break;
+        }
+        final nextEdge = candidates.firstWhere(
+          (candidate) => !visitedEdgeIds.contains(candidate.id),
+          orElse: () => const _RasterEdge.empty(),
+        );
+        if (nextEdge.isEmpty) {
+          break;
+        }
+        visitedEdgeIds.add(nextEdge.id);
+        loop.add(nextEdge.end);
+        currentEdge = nextEdge;
+      }
+
+      if (loop.length >= 4 && _pointsEqual(loop.first, loop.last)) {
+        loops.add(loop.sublist(0, loop.length - 1));
+      }
+    }
+    return loops;
+  }
+
+  String _pointKey(SvgPoint point) {
+    return '${point.x.toStringAsFixed(4)},${point.y.toStringAsFixed(4)}';
+  }
 }
 
 class _StrokeContourGroup {
@@ -469,4 +647,19 @@ class _SizeGroup {
       count: count ?? this.count,
     );
   }
+}
+
+class _RasterEdge {
+  const _RasterEdge({required this.start, required this.end, this.id = -1});
+
+  const _RasterEdge.empty()
+    : start = const SvgPoint(0, 0),
+      end = const SvgPoint(0, 0),
+      id = -1;
+
+  final SvgPoint start;
+  final SvgPoint end;
+  final int id;
+
+  bool get isEmpty => id == -1;
 }

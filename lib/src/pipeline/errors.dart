@@ -1,12 +1,12 @@
-/// Thrown when no SVG files are found in the configured input directory.
+/// Thrown when no supported icon source files are found in the input directory.
 class NoIconsFoundError extends Error {
   NoIconsFoundError(this.inputDir);
 
-  /// Directory that was scanned for SVG files.
+  /// Directory that was scanned for icon source files.
   final String inputDir;
 
   @override
-  String toString() => 'No SVG icons found in inputDir: $inputDir';
+  String toString() => 'No supported icon sources found in inputDir: $inputDir';
 }
 
 /// Thrown when the compile step is reached without resolved symbols.

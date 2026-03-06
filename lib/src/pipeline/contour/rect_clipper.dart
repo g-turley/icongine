@@ -1,6 +1,6 @@
 import 'contour.dart';
 import 'contour_flattener.dart';
-import 'document.dart';
+import 'stroke_style.dart';
 
 class SvgRectClipper {
   const SvgRectClipper();

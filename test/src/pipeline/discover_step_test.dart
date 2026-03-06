@@ -48,7 +48,7 @@ void main() {
       ]);
     });
 
-    test('throws when no svg files are found', () async {
+    test('throws when no icon source files are found', () async {
       final inputDir = Directory(path.join(tempDir.path, 'icons'));
       await inputDir.create(recursive: true);
 
@@ -67,7 +67,7 @@ void main() {
         fail('Expected NoIconsFoundError');
       } on NoIconsFoundError catch (error) {
         expect(error.inputDir, inputDir.path);
-        expect(error.toString(), contains('No SVG icons found'));
+        expect(error.toString(), contains('No supported icon sources found'));
         expect(error.toString(), contains(inputDir.path));
       }
     });
