@@ -1,0 +1,1 @@
+enum FontFormat { ttf, otf }

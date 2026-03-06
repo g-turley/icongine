@@ -1,0 +1,472 @@
+import 'dart:io';
+import 'dart:math' as math;
+
+import '../../domain/icon_symbol.dart';
+import '../font/font_glyph.dart';
+import '../svg/contour.dart';
+import '../svg/coordinate_transformer.dart';
+import '../svg/document.dart';
+import '../svg/path_data_parser.dart';
+import '../svg/rect_clipper.dart';
+import '../svg/stroke_to_fill_converter.dart';
+import '../svg/winding_corrector.dart';
+import 'compile.dart';
+
+abstract interface class GlyphCompilationFacade {
+  List<FontGlyph> compileGlyphs({
+    required List<IconSymbol> symbols,
+    required int startCodePoint,
+    required int targetUnitsPerEm,
+    required bool normalize,
+  });
+}
+
+class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
+  const SvgGlyphCompilationFacade({
+    this.boundsExtractor = const DefaultSvgBoundsExtractor(),
+    this.documentExtractor = const SvgDocumentPathExtractor(),
+    this.pathDataParser = const SvgPathDataParser(),
+    this.coordinateTransformer = const SvgToFontCoordinateTransformer(
+      contentScale: 0.92,
+    ),
+    this.rectClipper = const SvgRectClipper(),
+    this.strokeToFillConverter = const StrokeToFillConverter(),
+    this.windingCorrector = const WindingCorrector(),
+  });
+
+  final SvgBoundsExtractor boundsExtractor;
+  final SvgDocumentPathExtractor documentExtractor;
+  final SvgPathDataParser pathDataParser;
+  final SvgToFontCoordinateTransformer coordinateTransformer;
+  final SvgRectClipper rectClipper;
+  final StrokeToFillConverter strokeToFillConverter;
+  final WindingCorrector windingCorrector;
+
+  @override
+  List<FontGlyph> compileGlyphs({
+    required List<IconSymbol> symbols,
+    required int startCodePoint,
+    required int targetUnitsPerEm,
+    required bool normalize,
+  }) {
+    final preparedGlyphs = symbols.map(_prepareGlyph).toList(growable: false);
+    final normalizationPlan = _resolveNormalizationPlan(preparedGlyphs);
+
+    final glyphs = <FontGlyph>[];
+    for (var index = 0; index < preparedGlyphs.length; index += 1) {
+      final prepared = preparedGlyphs[index];
+      final codePoint = startCodePoint + index;
+      final sizeScale = normalize
+          ? _resolveGlyphSizeScale(
+              sourceWidth: prepared.sourceWidth,
+              sourceHeight: prepared.sourceHeight,
+              targetWidth: normalizationPlan.targetWidth,
+              targetHeight: normalizationPlan.targetHeight,
+            )
+          : 1.0;
+      final normalizedSourceContourPath = sizeScale == 1.0
+          ? prepared.sourceContourPath
+          : _scaleContourPath(prepared.sourceContourPath, sizeScale);
+      final normalizedSourceWidth = prepared.sourceWidth * sizeScale;
+      final normalizedSourceHeight = prepared.sourceHeight * sizeScale;
+
+      final compiledContourPath = coordinateTransformer.transform(
+        contourPath: normalizedSourceContourPath,
+        sourceWidth: normalizedSourceWidth,
+        sourceHeight: normalizedSourceHeight,
+        targetUnitsPerEm: targetUnitsPerEm,
+        normalize: normalize,
+        normalizationReferenceLongestSide: normalize
+            ? normalizationPlan.referenceLongestSide
+            : null,
+      );
+
+      glyphs.add(
+        FontGlyph(
+          name: prepared.symbol.name,
+          codePoint: codePoint,
+          glyphId: index + 1,
+          sourceWidth: prepared.sourceWidth,
+          sourceHeight: prepared.sourceHeight,
+          sourceMinX: prepared.sourceMinX,
+          sourceMinY: prepared.sourceMinY,
+          sourceSvgPath: prepared.symbol.file.absolutePath,
+          sourceSvgDocument: prepared.svgContent,
+          sourceContourPath: prepared.sourceContourPath,
+          compiledContourPath: compiledContourPath,
+          normalizationScaled: sizeScale != 1.0,
+        ),
+      );
+    }
+    return glyphs;
+  }
+
+  _PreparedGlyph _prepareGlyph(IconSymbol symbol) {
+    final svgContent = File(symbol.file.absolutePath).readAsStringSync();
+    final documentData = documentExtractor.extract(svgContent);
+    final viewport = documentData.viewport;
+    final sourceWidth =
+        viewport?.width ?? boundsExtractor.extract(svgContent).width;
+    final sourceHeight =
+        viewport?.height ?? boundsExtractor.extract(svgContent).height;
+
+    final fillContours = <SvgContour>[];
+    final strokeGroups = <_StrokeContourGroup>[];
+    for (final pathEntry in documentData.pathEntries) {
+      final parsed = pathDataParser.parse(pathEntry.pathData);
+      var transformed = _applyElementTransform(
+        parsed,
+        pathEntry.transformMatrix,
+      );
+      final clipRect = pathEntry.clipRect;
+      if (clipRect != null) {
+        transformed = rectClipper.clipPath(transformed, clipRect);
+      }
+      if (transformed.contours.isEmpty) {
+        continue;
+      }
+      final stroke = pathEntry.strokeProperties;
+      final allContoursOpen = transformed.contours.every(
+        (contour) => !contour.isClosed,
+      );
+      final allContoursClosed = transformed.contours.every(
+        (contour) => contour.isClosed,
+      );
+
+      final shouldEmitFill = stroke == null || stroke.hasVisibleFill;
+      if (shouldEmitFill) {
+        final closedFillContours = _closeContoursForFill(transformed.contours);
+        fillContours.addAll(
+          _normalizeFillContoursForRule(
+            contours: closedFillContours,
+            fillRule: pathEntry.fillRule,
+            windingCorrector: windingCorrector,
+          ),
+        );
+      }
+
+      final shouldExpandStroke =
+          stroke != null && (stroke.isStrokeOnly || allContoursOpen);
+      if (shouldExpandStroke) {
+        final expanded = strokeToFillConverter.convert(
+          sourcePath: transformed,
+          strokeProperties: stroke,
+        );
+        strokeGroups.add(
+          _StrokeContourGroup(
+            sourceAllClosed: allContoursClosed,
+            sourceTagName: pathEntry.sourceTagName,
+            contours: expanded.contours,
+          ),
+        );
+      }
+    }
+
+    final strokeContours = <SvgContour>[
+      for (final group in strokeGroups) ...group.contours,
+    ];
+    final sourceContourPath = SvgContourPath(
+      contours: [...fillContours, ...strokeContours],
+    );
+
+    return _PreparedGlyph(
+      symbol: symbol,
+      svgContent: svgContent,
+      sourceContourPath: sourceContourPath,
+      sourceWidth: sourceWidth,
+      sourceHeight: sourceHeight,
+      sourceMinX: viewport?.minX ?? 0,
+      sourceMinY: viewport?.minY ?? 0,
+    );
+  }
+
+  _NormalizationPlan _resolveNormalizationPlan(List<_PreparedGlyph> glyphs) {
+    if (glyphs.isEmpty) {
+      return const _NormalizationPlan(
+        targetWidth: 1,
+        targetHeight: 1,
+        referenceLongestSide: 1,
+      );
+    }
+
+    final grouped = <String, _SizeGroup>{};
+    for (final glyph in glyphs) {
+      final key = _sizeKey(glyph.sourceWidth, glyph.sourceHeight);
+      final existing = grouped[key];
+      if (existing == null) {
+        grouped[key] = _SizeGroup(
+          key: key,
+          width: glyph.sourceWidth,
+          height: glyph.sourceHeight,
+          count: 1,
+        );
+      } else {
+        grouped[key] = existing.copyWith(count: existing.count + 1);
+      }
+    }
+
+    final groups = grouped.values.toList(growable: false);
+    final majorityGroup = groups
+        .where((group) => group.count > glyphs.length / 2)
+        .toList();
+    final selected = majorityGroup.isNotEmpty
+        ? majorityGroup.first
+        : (groups..sort((left, right) {
+                final byArea = (right.width * right.height).compareTo(
+                  left.width * left.height,
+                );
+                if (byArea != 0) {
+                  return byArea;
+                }
+                return right.count.compareTo(left.count);
+              }))
+              .first;
+
+    final referenceLongestSide = math.max(selected.width, selected.height);
+    return _NormalizationPlan(
+      targetWidth: selected.width,
+      targetHeight: selected.height,
+      referenceLongestSide: referenceLongestSide <= 0
+          ? 1
+          : referenceLongestSide,
+    );
+  }
+
+  double _resolveGlyphSizeScale({
+    required double sourceWidth,
+    required double sourceHeight,
+    required double targetWidth,
+    required double targetHeight,
+  }) {
+    final sourceLongest = math.max(sourceWidth, sourceHeight);
+    final targetLongest = math.max(targetWidth, targetHeight);
+    if (sourceLongest <= 0 || targetLongest <= 0) {
+      return 1.0;
+    }
+    return targetLongest / sourceLongest;
+  }
+
+  SvgContourPath _scaleContourPath(SvgContourPath contourPath, double scale) {
+    return SvgContourPath(
+      contours: contourPath.contours
+          .map((contour) => _scaleContour(contour, scale))
+          .toList(growable: false),
+    );
+  }
+
+  SvgContour _scaleContour(SvgContour contour, double scale) {
+    return SvgContour(
+      isClosed: contour.isClosed,
+      segments: contour.segments
+          .map((segment) => _scaleSegment(segment, scale))
+          .toList(growable: false),
+    );
+  }
+
+  SvgContourSegment _scaleSegment(SvgContourSegment segment, double scale) {
+    switch (segment.type) {
+      case SvgContourSegmentType.line:
+        return SvgContourSegment.line(
+          start: _scalePoint(segment.start, scale),
+          end: _scalePoint(segment.end, scale),
+        );
+      case SvgContourSegmentType.cubic:
+        return SvgContourSegment.cubic(
+          start: _scalePoint(segment.start, scale),
+          control1: _scalePoint(segment.control1!, scale),
+          control2: _scalePoint(segment.control2!, scale),
+          end: _scalePoint(segment.end, scale),
+        );
+      case SvgContourSegmentType.quadratic:
+        return SvgContourSegment.quadratic(
+          start: _scalePoint(segment.start, scale),
+          control1: _scalePoint(segment.control1!, scale),
+          end: _scalePoint(segment.end, scale),
+        );
+      case SvgContourSegmentType.arc:
+        return SvgContourSegment.arc(
+          start: _scalePoint(segment.start, scale),
+          end: _scalePoint(segment.end, scale),
+          rx: segment.rx! * scale,
+          ry: segment.ry! * scale,
+          xAxisRotation: segment.xAxisRotation!,
+          largeArc: segment.largeArc!,
+          sweep: segment.sweep!,
+        );
+    }
+  }
+
+  SvgPoint _scalePoint(SvgPoint point, double scale) {
+    return SvgPoint(point.x * scale, point.y * scale);
+  }
+
+  String _sizeKey(double width, double height) {
+    return '${width.toStringAsFixed(3)}x${height.toStringAsFixed(3)}';
+  }
+
+  List<SvgContour> _closeContoursForFill(List<SvgContour> contours) {
+    return contours.map(_closeContourForFill).toList(growable: false);
+  }
+
+  List<SvgContour> _normalizeFillContoursForRule({
+    required List<SvgContour> contours,
+    required SvgFillRule fillRule,
+    required WindingCorrector windingCorrector,
+  }) {
+    if (contours.isEmpty) {
+      return const [];
+    }
+    return switch (fillRule) {
+      SvgFillRule.evenodd || SvgFillRule.nonzero =>
+        windingCorrector.correct(SvgContourPath(contours: contours)).contours,
+    };
+  }
+
+  SvgContour _closeContourForFill(SvgContour contour) {
+    if (contour.isClosed || contour.segments.isEmpty) {
+      return contour;
+    }
+    final start = contour.segments.first.start;
+    final end = contour.segments.last.end;
+    final closedSegments = List<SvgContourSegment>.from(contour.segments);
+    if (!_pointsEqual(start, end)) {
+      closedSegments.add(SvgContourSegment.line(start: end, end: start));
+    }
+    return SvgContour(segments: closedSegments, isClosed: true);
+  }
+
+  SvgContourPath _applyElementTransform(
+    SvgContourPath contourPath,
+    SvgTransformMatrix? transformMatrix,
+  ) {
+    if (transformMatrix == null) {
+      return contourPath;
+    }
+    final transformedContours = contourPath.contours
+        .map((contour) => _transformContour(contour, transformMatrix))
+        .toList();
+    return SvgContourPath(contours: transformedContours);
+  }
+
+  SvgContour _transformContour(
+    SvgContour contour,
+    SvgTransformMatrix transformMatrix,
+  ) {
+    final transformedSegments = contour.segments
+        .map((segment) => _transformSegment(segment, transformMatrix))
+        .toList();
+    return SvgContour(
+      segments: transformedSegments,
+      isClosed: contour.isClosed,
+    );
+  }
+
+  SvgContourSegment _transformSegment(
+    SvgContourSegment segment,
+    SvgTransformMatrix transformMatrix,
+  ) {
+    final start = transformMatrix.applyToPoint(segment.start);
+    final end = transformMatrix.applyToPoint(segment.end);
+    switch (segment.type) {
+      case SvgContourSegmentType.line:
+        return SvgContourSegment.line(start: start, end: end);
+      case SvgContourSegmentType.cubic:
+        return SvgContourSegment.cubic(
+          start: start,
+          control1: transformMatrix.applyToPoint(segment.control1!),
+          control2: transformMatrix.applyToPoint(segment.control2!),
+          end: end,
+        );
+      case SvgContourSegmentType.quadratic:
+        return SvgContourSegment.quadratic(
+          start: start,
+          control1: transformMatrix.applyToPoint(segment.control1!),
+          end: end,
+        );
+      case SvgContourSegmentType.arc:
+        final rotationDegrees =
+            math.atan2(transformMatrix.b, transformMatrix.a) * (180 / math.pi);
+        return SvgContourSegment.arc(
+          start: start,
+          end: end,
+          rx: segment.rx!,
+          ry: segment.ry!,
+          xAxisRotation: (segment.xAxisRotation ?? 0) + rotationDegrees,
+          largeArc: segment.largeArc!,
+          sweep: segment.sweep!,
+        );
+    }
+  }
+
+  bool _pointsEqual(SvgPoint first, SvgPoint second) {
+    return (first.x - second.x).abs() < 1e-9 &&
+        (first.y - second.y).abs() < 1e-9;
+  }
+}
+
+class _StrokeContourGroup {
+  const _StrokeContourGroup({
+    required this.sourceAllClosed,
+    required this.sourceTagName,
+    required this.contours,
+  });
+
+  final bool sourceAllClosed;
+  final String sourceTagName;
+  final List<SvgContour> contours;
+}
+
+class _PreparedGlyph {
+  const _PreparedGlyph({
+    required this.symbol,
+    required this.svgContent,
+    required this.sourceContourPath,
+    required this.sourceWidth,
+    required this.sourceHeight,
+    required this.sourceMinX,
+    required this.sourceMinY,
+  });
+
+  final IconSymbol symbol;
+  final String svgContent;
+  final SvgContourPath sourceContourPath;
+  final double sourceWidth;
+  final double sourceHeight;
+  final double sourceMinX;
+  final double sourceMinY;
+}
+
+class _NormalizationPlan {
+  const _NormalizationPlan({
+    required this.targetWidth,
+    required this.targetHeight,
+    required this.referenceLongestSide,
+  });
+
+  final double targetWidth;
+  final double targetHeight;
+  final double referenceLongestSide;
+}
+
+class _SizeGroup {
+  const _SizeGroup({
+    required this.key,
+    required this.width,
+    required this.height,
+    required this.count,
+  });
+
+  final String key;
+  final double width;
+  final double height;
+  final int count;
+
+  _SizeGroup copyWith({int? count}) {
+    return _SizeGroup(
+      key: key,
+      width: width,
+      height: height,
+      count: count ?? this.count,
+    );
+  }
+}
