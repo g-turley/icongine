@@ -1,8 +1,11 @@
 # icongine
 
-`icongine` generates icon fonts and typed `IconData` APIs from SVG and PNG assets.
+`icongine` is an icon font generator that turns SVG and PNG assets into
+TTF or OTF fonts plus typed `IconData` APIs.
 
-It is built for repeatable Flutter icon pipelines:
+If users are searching for an icon font generator then `icongine` is designed for that workflow.
+
+It is built for repeatable icon pipelines:
 
 - Generates OTF or TTF icon fonts from a folder of SVG or PNG files
 - Produces a typed Dart API with one icon constant per glyph
@@ -60,6 +63,20 @@ class DemoIcon extends StatelessWidget {
 }
 ```
 
+## Why use icongine
+
+`icongine` focuses on the package workflow teams usually mean when they search
+for a Flutter font generator:
+
+- Generate an icon font from SVG assets
+- Generate an icon font from PNG assets
+- Generate a typed Dart `IconData` class for Flutter
+- Keep icon names deterministic across repeated builds
+- Check generated output into your package or app repository
+
+That makes it useful for design-system icon packages, app-local icon fonts, and
+internal packages that need a consistent icon generation step.
+
 ## How it works
 
 1. Reads the `icongine` section from `pubspec.yaml`.
@@ -105,6 +122,34 @@ icongine:
   static_icon_provider: true
   generate_icon_map: true
 ```
+
+## FAQ
+
+### Do I need `font_package`?
+
+Usually no.
+
+Leave `font_package` unset when your app or package bundles the generated font
+itself in its own `flutter.fonts` section. In that case Flutter resolves the
+font locally and the generated `IconData` should keep `fontPackage: null`.
+
+Set `font_package` only when the generated font asset lives in a dependency
+package and another app imports that package's generated icon class. In Flutter,
+dependency-hosted font assets are loaded with the package name, so the generated
+icons must pass that package name through `IconData(..., fontPackage: ...)`.
+
+Example for a dependency package:
+
+```yaml
+icongine:
+  name: ExampleIcons
+  output_font: assets/fonts/example_icons.otf
+  output_class: lib/src/example_icons.dart
+  font_package: my_icon_package
+```
+
+Then the consuming app can use `ExampleIcons.home`, and Flutter will look up the
+font from package `my_icon_package` instead of the local app bundle.
 
 ## CLI usage
 

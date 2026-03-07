@@ -1,4 +1,4 @@
-/// Public API for building icon fonts and generated Flutter icon classes.
+/// Public API for an icon font generator and typed IconData generator.
 library;
 
 export 'src/pipeline/builder.dart';
