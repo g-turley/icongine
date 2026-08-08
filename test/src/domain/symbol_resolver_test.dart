@@ -160,5 +160,39 @@ void main() {
       expect(issue.severity, NamingIssueSeverity.error);
       expect(issue.message, contains('produced an empty symbol name'));
     });
+
+    test('reports error when a generated name starts with a digit', () {
+      final result = resolver.resolveWithDiagnostics(
+        files: const [
+          IconFile(
+            absolutePath: '/tmp/123-home.svg',
+            relativePath: '123-home.svg',
+          ),
+        ],
+        prefixWithSubdir: false,
+      );
+
+      final issue = result.issues.singleWhere(
+        (item) => item.code == 'invalid_identifier',
+      );
+      expect(issue.severity, NamingIssueSeverity.error);
+      expect(issue.message, contains('starts with a letter'));
+    });
+
+    test('reports representative Dart keywords as reserved identifiers', () {
+      final result = resolver.resolveWithDiagnostics(
+        files: const [
+          IconFile(absolutePath: '/tmp/break.svg', relativePath: 'break.svg'),
+          IconFile(absolutePath: '/tmp/import.svg', relativePath: 'import.svg'),
+          IconFile(absolutePath: '/tmp/sealed.svg', relativePath: 'sealed.svg'),
+        ],
+        prefixWithSubdir: false,
+      );
+
+      expect(
+        result.issues.where((issue) => issue.code == 'reserved_identifier'),
+        hasLength(3),
+      );
+    });
   });
 }

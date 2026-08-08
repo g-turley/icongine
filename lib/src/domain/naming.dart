@@ -80,6 +80,17 @@ class SymbolResolver {
                     'Rename the file to include alphanumeric characters.',
               ),
             );
+          } else if (!_dartIdentifier.hasMatch(baseName)) {
+            issues.add(
+              NamingIssue(
+                severity: NamingIssueSeverity.error,
+                code: 'invalid_identifier',
+                message:
+                    'Icon "${file.relativePath}" resolves to invalid Dart '
+                    'identifier "$baseName". Rename the file so its name '
+                    'starts with a letter.',
+              ),
+            );
           }
           assignedByBaseName
               .putIfAbsent(baseName, () => [])
@@ -134,13 +145,50 @@ class SymbolResolver {
   }
 
   static const Set<String> _reservedIdentifiers = {
+    'abstract',
+    'as',
+    'assert',
+    'async',
+    'await',
+    'base',
+    'break',
+    'continue',
+    'covariant',
+    'deferred',
+    'dynamic',
+    'export',
+    'extends',
+    'external',
+    'factory',
+    'finally',
     'fontFamily',
     'fontPackage',
+    'get',
     'runtimeType',
     'hashCode',
     'toString',
     'noSuchMethod',
+    'hide',
+    'implements',
+    'import',
+    'in',
+    'interface',
+    'is',
+    'late',
+    'library',
+    'on',
     'operator',
+    'part',
+    'required',
+    'rethrow',
+    'sealed',
+    'set',
+    'show',
+    'sync',
+    'typedef',
+    'when',
+    'with',
+    'yield',
     'class',
     'enum',
     'extension',
@@ -169,4 +217,6 @@ class SymbolResolver {
     'true',
     'false',
   };
+
+  static final RegExp _dartIdentifier = RegExp(r'^[a-zA-Z][a-zA-Z0-9]*$');
 }

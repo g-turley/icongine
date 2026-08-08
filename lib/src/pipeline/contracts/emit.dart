@@ -66,18 +66,23 @@ class FileIconEmitter implements IconEmitter {
     required List<IconSymbol> symbols,
     required IconCompileResult compileResult,
   }) {
-    _writeBytes(config.outFontFile!, compileResult.fontBytes);
-
     final generatedClassFileContent = classGenerator.generate(
       className: config.normalizedClassName,
       fontFamily: compileResult.fontFamily,
       fontPackage: config.fontPackage,
-      outFontFile: config.outFontFile!,
+      outFontFile: config.fontAssetPath,
       glyphs: compileResult.glyphs,
       staticIconProvider: config.staticIconProvider,
       generateIconMap: config.generateIconMap,
     );
-    _writeText(config.outClassFile, generatedClassFileContent);
+    _writeAtomically(
+      config.outFontFile!,
+      (file) => file.writeAsBytesSync(compileResult.fontBytes, flush: true),
+    );
+    _writeAtomically(
+      config.outClassFile,
+      (file) => file.writeAsStringSync(generatedClassFileContent, flush: true),
+    );
 
     return IconEmitResult(
       fontOutputPath: config.outFontFile,
@@ -86,15 +91,21 @@ class FileIconEmitter implements IconEmitter {
     );
   }
 
-  void _writeBytes(String outputPath, List<int> bytes) {
-    final file = File(outputPath);
-    file.parent.createSync(recursive: true);
-    file.writeAsBytesSync(bytes);
+  void _writeAtomically(String outputPath, void Function(File file) write) {
+    final destination = File(outputPath);
+    destination.parent.createSync(recursive: true);
+    final staged = File(
+      '$outputPath.icongine.$pid.${_nextTemporaryFileId++}.tmp',
+    );
+    try {
+      write(staged);
+      staged.renameSync(destination.path);
+    } finally {
+      if (staged.existsSync()) {
+        staged.deleteSync();
+      }
+    }
   }
 
-  void _writeText(String outputPath, String content) {
-    final file = File(outputPath);
-    file.parent.createSync(recursive: true);
-    file.writeAsStringSync(content);
-  }
+  static int _nextTemporaryFileId = 0;
 }

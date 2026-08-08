@@ -3,7 +3,11 @@ import 'dart:io';
 import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart';
 
-import '../../icongine.dart';
+import '../domain/config.dart';
+import '../domain/config_parser.dart';
+import '../domain/font_format.dart';
+import '../pipeline/builder.dart';
+import '../pipeline/generation_orchestrator.dart';
 
 /// CLI or programmatic overrides applied on top of pubspec configuration.
 class GenerateConfigOverrides {
@@ -53,6 +57,7 @@ class GenerateConfigOverrides {
       packageName: baseConfig.packageName,
       inputDir: inputDir ?? baseConfig.inputDir,
       outFontFile: outFontFile ?? baseConfig.outFontFile,
+      fontAssetPath: outFontFile ?? baseConfig.fontAssetPath,
       outClassFile: outClassFile ?? baseConfig.outClassFile,
       className: className ?? baseConfig.className,
       fontPackage: baseConfig.fontPackage,
@@ -112,16 +117,23 @@ class GenerateIconsCommand {
     final parsedConfig = configParser.parsePubspec(pubspecMap);
     final resolvedConfig = overrides.applyTo(parsedConfig);
     final pubspecDirectory = pubspecFile.parent.path;
+    final configuredFontPath = resolvedConfig.outFontFile;
     return GenerationConfig(
       packageName: resolvedConfig.packageName,
       inputDir: _resolvePathFromConfigDirectory(
         configuredPath: resolvedConfig.inputDir,
         configDirectory: pubspecDirectory,
       ),
-      outFontFile: resolvedConfig.outFontFile == null
+      outFontFile: configuredFontPath == null
           ? null
           : _resolvePathFromConfigDirectory(
-              configuredPath: resolvedConfig.outFontFile!,
+              configuredPath: configuredFontPath,
+              configDirectory: pubspecDirectory,
+            ),
+      fontAssetPath: configuredFontPath == null
+          ? null
+          : _resolveAssetPath(
+              configuredPath: configuredFontPath,
               configDirectory: pubspecDirectory,
             ),
       outClassFile: _resolvePathFromConfigDirectory(
@@ -161,5 +173,15 @@ class GenerateIconsCommand {
       return configuredPath;
     }
     return path.normalize(path.join(configDirectory, configuredPath));
+  }
+
+  String _resolveAssetPath({
+    required String configuredPath,
+    required String configDirectory,
+  }) {
+    if (!path.isAbsolute(configuredPath)) {
+      return path.normalize(configuredPath);
+    }
+    return path.relative(configuredPath, from: path.absolute(configDirectory));
   }
 }

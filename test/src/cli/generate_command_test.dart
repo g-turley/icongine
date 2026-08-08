@@ -47,6 +47,10 @@ icongine:
         path.join(tempDir.path, 'assets', 'fonts', 'custom.otf'),
       );
       expect(
+        runner.capturedConfig!.fontAssetPath,
+        path.join('assets', 'fonts', 'custom.otf'),
+      );
+      expect(
         runner.capturedConfig!.outClassFile,
         path.join(tempDir.path, 'lib', 'custom_icons.dart'),
       );

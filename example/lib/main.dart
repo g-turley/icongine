@@ -13,7 +13,14 @@ class ExampleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'icongine example',
-      theme: ThemeData(colorSchemeSeed: Colors.teal),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        colorSchemeSeed: Colors.teal,
+        useMaterial3: true,
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(),
+        ),
+      ),
       home: const IconCatalogPage(),
     );
   }
@@ -27,76 +34,139 @@ class IconCatalogPage extends StatefulWidget {
 }
 
 class _IconCatalogPageState extends State<IconCatalogPage> {
+  late final List<MapEntry<String, IconData>> _allIcons =
+      ExampleIcons.all.entries.toList()
+        ..sort((left, right) => left.key.compareTo(right.key));
+  final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
   @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final allIcons = ExampleIcons.all.entries.toList()
-      ..sort((left, right) => left.key.compareTo(right.key));
-    final visibleIcons = allIcons
+    final visibleIcons = _allIcons
         .where((entry) => entry.key.toLowerCase().contains(_query))
         .toList(growable: false);
 
     return Scaffold(
-      appBar: AppBar(title: Text('icongine catalog (${visibleIcons.length})')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  _query = value.trim().toLowerCase();
-                });
-              },
-              decoration: const InputDecoration(
-                hintText: 'Filter icons by name',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ),
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.3,
-              ),
-              itemCount: visibleIcons.length,
-              itemBuilder: (context, index) {
-                final entry = visibleIcons[index];
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(entry.value, size: 24),
-                        const SizedBox(height: 6),
-                        Text(
-                          entry.key,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      ],
+      appBar: AppBar(title: const Text('icongine catalog')),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SearchBar(
+                controller: _searchController,
+                hintText: 'Search ${_allIcons.length} icons',
+                leading: const Icon(Icons.search),
+                trailing: [
+                  if (_query.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Clear search',
+                      onPressed: _clearSearch,
+                      icon: const Icon(Icons.close),
                     ),
-                  ),
-                );
-              },
+                ],
+                onChanged: _updateQuery,
+              ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                '${visibleIcons.length} ${visibleIcons.length == 1 ? 'icon' : 'icons'}',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            Expanded(
+              child: visibleIcons.isEmpty
+                  ? _EmptySearch(query: _searchController.text)
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      gridDelegate:
+                          const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 176,
+                            mainAxisExtent: 112,
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                          ),
+                      itemCount: visibleIcons.length,
+                      itemBuilder: (context, index) {
+                        return _IconTile(entry: visibleIcons[index]);
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _updateQuery(String value) {
+    setState(() {
+      _query = value.trim().toLowerCase();
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    _updateQuery('');
+  }
+}
+
+class _IconTile extends StatelessWidget {
+  const _IconTile({required this.entry});
+
+  final MapEntry<String, IconData> entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '${entry.key} icon',
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(entry.value, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                entry.key,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySearch extends StatelessWidget {
+  const _EmptySearch({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'No icons match “$query”.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
       ),
     );
   }

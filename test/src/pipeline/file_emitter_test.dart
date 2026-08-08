@@ -169,6 +169,100 @@ void main() {
       );
     });
 
+    test('escapes configured strings in generated Dart source', () {
+      const emitter = FileIconEmitter();
+      final config = GenerationConfig(
+        packageName: 'sample',
+        inputDir: path.join(tempDir.path, 'icons'),
+        outFontFile: path.join(tempDir.path, 'out', 'icons.otf'),
+        outClassFile: path.join(tempDir.path, 'out', 'icons.dart'),
+        fontPackage: r"acme'$icons",
+      );
+
+      emitter.emit(
+        config: config,
+        symbols: const [],
+        compileResult: IconCompileResult(
+          fontBytes: Uint8List(0),
+          fontFamily: r"Acme's $icons",
+          compiledSymbolCount: 0,
+          glyphs: const [],
+        ),
+      );
+
+      final source = File(config.outClassFile).readAsStringSync();
+      expect(
+        source,
+        contains(r"static const String fontFamily = 'Acme\'s \$icons';"),
+      );
+      expect(
+        source,
+        contains(r"static const String? fontPackage = 'acme\'\$icons';"),
+      );
+    });
+
+    test('uses the pubspec-relative font path in generated setup docs', () {
+      const emitter = FileIconEmitter();
+      final config = GenerationConfig(
+        packageName: 'sample',
+        inputDir: path.join(tempDir.path, 'icons'),
+        outFontFile: path.join(tempDir.path, 'out', 'icons.otf'),
+        fontAssetPath: path.join('assets', 'fonts', 'icons.otf'),
+        outClassFile: path.join(tempDir.path, 'out', 'icons.dart'),
+      );
+
+      emitter.emit(
+        config: config,
+        symbols: const [],
+        compileResult: IconCompileResult(
+          fontBytes: Uint8List(0),
+          fontFamily: 'AppIcons',
+          compiledSymbolCount: 0,
+          glyphs: const [],
+        ),
+      );
+
+      final source = File(config.outClassFile).readAsStringSync();
+      expect(source, contains('asset: assets/fonts/icons.otf'));
+      expect(source, isNot(contains(tempDir.path)));
+    });
+
+    test('replaces existing artifacts without leaving staging files', () {
+      const emitter = FileIconEmitter();
+      final config = GenerationConfig(
+        packageName: 'sample',
+        inputDir: path.join(tempDir.path, 'icons'),
+        outFontFile: path.join(tempDir.path, 'out', 'icons.otf'),
+        outClassFile: path.join(tempDir.path, 'out', 'icons.dart'),
+      );
+      IconCompileResult result(List<int> bytes) => IconCompileResult(
+        fontBytes: Uint8List.fromList(bytes),
+        fontFamily: 'AppIcons',
+        compiledSymbolCount: 0,
+        glyphs: const [],
+      );
+
+      emitter.emit(
+        config: config,
+        symbols: const [],
+        compileResult: result([1]),
+      );
+      emitter.emit(
+        config: config,
+        symbols: const [],
+        compileResult: result([2, 3]),
+      );
+
+      expect(File(config.outFontFile!).readAsBytesSync(), [2, 3]);
+      expect(
+        Directory(path.dirname(config.outFontFile!))
+            .listSync()
+            .whereType<File>()
+            .where((file) => file.path.endsWith('.tmp')),
+        isEmpty,
+      );
+    });
+
     test('omits staticIconProvider annotation when disabled', () {
       const emitter = FileIconEmitter();
 

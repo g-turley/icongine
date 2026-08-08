@@ -271,6 +271,26 @@ void main() {
 
       expect(exitCode, 1);
       expect(stderrLines.first, contains('icongine generation failed'));
+      expect(stderrLines.join('\n'), isNot(contains('#0')));
+      expect(stderrLines.last, contains('Re-run with `--verbose`'));
+    });
+
+    test('prints an actionable message when no icons are found', () async {
+      final stderrLines = <String>[];
+      final cli = IcongineCli(
+        runGenerate: ({required pubspecPath, required overrides}) =>
+            Future<GenerationReport>.error(NoIconsFoundError('assets/missing')),
+      );
+
+      final exitCode = await cli.run(
+        const ['generate'],
+        stdoutWriteln: (_) {},
+        stderrWriteln: stderrLines.add,
+      );
+
+      expect(exitCode, 66);
+      expect(stderrLines.first, contains('No SVG or PNG icons found'));
+      expect(stderrLines.last, contains('icongine.input_dir'));
     });
 
     test(

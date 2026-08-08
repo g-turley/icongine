@@ -1,4 +1,3 @@
-import 'package:icongine/icongine.dart';
 import 'package:test/test.dart';
 
 import 'contour_assertions.dart';
@@ -85,7 +84,7 @@ void main() {
         expect(countInteriorSelfIntersections(bodyStrokeContour), 0);
       },
     );
-    
+
     test(
       'shield-checkmark-outline keeps rounded closed ring with no inner self-intersections',
       () {
@@ -135,46 +134,4 @@ void main() {
       },
     );
   });
-}
-
-_Bounds _bounds(SvgContourPath contourPath) {
-  var minX = double.infinity;
-  var minY = double.infinity;
-  var maxX = -double.infinity;
-  var maxY = -double.infinity;
-
-  for (final contour in contourPath.contours) {
-    for (final segment in contour.segments) {
-      minX = _min(minX, segment.start.x, segment.end.x);
-      minY = _min(minY, segment.start.y, segment.end.y);
-      maxX = _max(maxX, segment.start.x, segment.end.x);
-      maxY = _max(maxY, segment.start.y, segment.end.y);
-    }
-  }
-
-  return _Bounds(minX: minX, minY: minY, maxX: maxX, maxY: maxY);
-}
-
-double _min(double current, double first, double second) {
-  final smaller = first < second ? first : second;
-  return current < smaller ? current : smaller;
-}
-
-double _max(double current, double first, double second) {
-  final larger = first > second ? first : second;
-  return current > larger ? current : larger;
-}
-
-class _Bounds {
-  const _Bounds({
-    required this.minX,
-    required this.minY,
-    required this.maxX,
-    required this.maxY,
-  });
-
-  final double minX;
-  final double minY;
-  final double maxX;
-  final double maxY;
 }

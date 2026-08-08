@@ -261,3 +261,14 @@ Legend: ✅ fully supported, ⚠️ partially supported, ❌ not supported
 - generated icon font assets
 - a generated Dart icon class
 - an optional searchable `all` icon map
+
+## Development
+
+The core package requires only Dart; Flutter is needed for the example app.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for first setup, verification commands,
+fixture guidance, and compatibility expectations. The compiler boundaries and
+invariants are documented in [doc/architecture.md](doc/architecture.md).
+
+CI checks formatting, static analysis, the full package test suite, the Flutter
+example, and that running the documented example generation command leaves its
+committed artifacts unchanged.

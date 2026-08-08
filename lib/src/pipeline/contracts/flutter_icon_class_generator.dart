@@ -56,7 +56,10 @@ class FlutterIconClassGenerator {
     buffer
       ..writeln('class $className {')
       ..writeln('  const $className._();')
-      ..writeln("  static const String fontFamily = '$fontFamily';")
+      ..writeln(
+        '  static const String fontFamily = '
+        '${_asDartStringLiteral(fontFamily)};',
+      )
       ..writeln(
         '  static const String? fontPackage = '
         '${_asDartStringLiteral(fontPackage)};',
@@ -103,15 +106,17 @@ class FlutterIconClassGenerator {
     return normalizedPath;
   }
 
-  String _escapeSingleQuoted(String value) {
-    return value.replaceAll("'", r"\'");
-  }
-
   String _asDartStringLiteral(String? value) {
     if (value == null) {
       return 'null';
     }
-    return "'${_escapeSingleQuoted(value)}'";
+    final escaped = value
+        .replaceAll(r'\', r'\\')
+        .replaceAll("'", r"\'")
+        .replaceAll(r'$', r'\$')
+        .replaceAll('\r', r'\r')
+        .replaceAll('\n', r'\n');
+    return "'$escaped'";
   }
 }
 

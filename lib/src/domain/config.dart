@@ -13,6 +13,7 @@ class GenerationConfig {
     required this.inputDir,
     required this.outClassFile,
     this.outFontFile,
+    String? fontAssetPath,
     this.className = 'AppIcons',
     this.fontPackage,
     this.includeSubdirs = false,
@@ -23,15 +24,24 @@ class GenerationConfig {
     this.verbose = false,
     this.staticIconProvider = true,
     this.generateIconMap = false,
-  }) : fontFamily = className {
+  }) : fontFamily = className,
+       fontAssetPath = fontAssetPath ?? outFontFile ?? '' {
     if (packageName.trim().isEmpty) {
       throw ArgumentError.value(packageName, 'packageName');
     }
     if (inputDir.trim().isEmpty) {
       throw ArgumentError.value(inputDir, 'inputDir');
     }
+    if (outClassFile.trim().isEmpty) {
+      throw ArgumentError.value(outClassFile, 'outClassFile');
+    }
+    if (outFontFile != null && this.fontAssetPath.trim().isEmpty) {
+      throw ArgumentError.value(this.fontAssetPath, 'fontAssetPath');
+    }
+    _validateClassName();
     _validateFontFileExtension();
     _validateFontFilePresence();
+    _validateDistinctOutputPaths();
   }
 
   /// Package name from `pubspec.yaml`.
@@ -51,6 +61,12 @@ class GenerationConfig {
 
   /// Output path for the generated font file.
   final String? outFontFile;
+
+  /// Font asset path written into generated setup documentation.
+  ///
+  /// This remains relative to the package pubspec even when [outFontFile] is
+  /// resolved to another working-directory-relative or absolute path.
+  final String fontAssetPath;
 
   /// Requested Dart class name before normalization.
   final String className;
@@ -89,6 +105,24 @@ class GenerationConfig {
 
   /// Whether the current configuration writes a font file artifact.
   bool get generatesFontFile => true;
+
+  void _validateClassName() {
+    if (className.contains(RegExp(r'[\r\n\t]'))) {
+      throw ArgumentError.value(
+        className,
+        'className',
+        'className cannot contain control characters.',
+      );
+    }
+    final normalized = normalizedClassName;
+    if (!RegExp(r'^[a-zA-Z][a-zA-Z0-9]*$').hasMatch(normalized)) {
+      throw ArgumentError.value(
+        className,
+        'className',
+        'className must contain letters or numbers and start with a letter.',
+      );
+    }
+  }
 
   void _validateFontFileExtension() {
     if (!generatesFontFile) {
@@ -130,6 +164,21 @@ class GenerationConfig {
         outFontFile,
         'outFontFile',
         'outFontFile is required when fontFormat is ${fontFormat.name}.',
+      );
+    }
+  }
+
+  void _validateDistinctOutputPaths() {
+    final outputFontFile = outFontFile;
+    if (outputFontFile != null &&
+        path.equals(
+          path.absolute(outputFontFile),
+          path.absolute(outClassFile),
+        )) {
+      throw ArgumentError.value(
+        outClassFile,
+        'outClassFile',
+        'Font and Dart API outputs must use different paths.',
       );
     }
   }

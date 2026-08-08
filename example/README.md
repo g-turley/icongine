@@ -1,10 +1,10 @@
 # icongine example
 
-This app demonstrates generated icon usage from mixed icon sources under `assets/icons`.
+This app demonstrates generated icon usage from sources under `assets/icons`.
 
-The example keeps committed source assets in sibling subfolders:
-- `assets/icons/svg` for SVG sources
-- `assets/icons/png` for PNG sources
+The committed inputs are SVG files under `assets/icons/svg`. icongine also
+supports PNG inputs; the PNG files under `assets/raster_compare/` are visual
+comparison snapshots, not generator inputs.
 
 Generation intentionally points at the shared `assets/icons` root and relies on subdirectory prefixes to keep names distinct.
 

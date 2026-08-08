@@ -1,8 +1,18 @@
 import 'dart:io';
 import 'dart:math' as math;
 
-import '../../icongine.dart';
+import '../core/case_ext.dart';
+import '../domain/config.dart';
+import '../domain/font_format.dart';
+import '../domain/icon_file.dart';
+import '../domain/icon_symbol.dart';
+import '../pipeline/contracts/compile.dart';
+import '../pipeline/contour/contour.dart';
 import '../pipeline/contour/contour_flattener.dart';
+import '../pipeline/contour/stroke_to_fill_converter.dart';
+import '../pipeline/contour/winding_corrector.dart';
+import '../pipeline/svg_input/document.dart';
+import '../pipeline/svg_input/path_data_parser.dart';
 
 /// CLI command that inspects how a single SVG shape compiles.
 class ShapeDebugCommand {
