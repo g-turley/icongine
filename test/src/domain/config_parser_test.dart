@@ -5,6 +5,33 @@ void main() {
   group('GenerationConfigParser', () {
     const parser = GenerationConfigParser();
 
+    test('defaults to smooth PNG tracing and parses explicit alternatives', () {
+      expect(
+        parser.parsePubspec({'name': 'sample'}).pngTracing,
+        PngTracingMode.smooth,
+      );
+      for (final mode in PngTracingMode.values) {
+        for (final key in ['png_tracing', 'pngTracing']) {
+          expect(
+            parser.parsePubspec({
+              'name': 'sample',
+              'icongine': {key: mode.name},
+            }).pngTracing,
+            mode,
+          );
+        }
+      }
+      for (final invalid in <Object>['unknown', '', 3, true]) {
+        expect(
+          () => parser.parsePubspec({
+            'name': 'sample',
+            'icongine': {'png_tracing': invalid},
+          }),
+          throwsFormatException,
+        );
+      }
+    });
+
     test('supports runtime constructor usage', () {
       final runtimeParser = GenerationConfigParser();
       final config = runtimeParser.parsePubspec({'name': 'sample_pkg'});

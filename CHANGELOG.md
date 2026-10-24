@@ -2,18 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [1.2.0] - Unreleased
 
 ### Added
+- Added default alpha-aware PNG tracing for small antialiased icons, exact `pixel` mode, and `legacy` mode for older output. Added a nine-size tracing study and README visuals rendered from actual OTF/TTF fonts.
 - Added CI for formatting, strict analysis, package tests, Flutter example tests, and deterministic example generation.
 - Added contributor and architecture guides plus a responsive example catalog widget test.
 
 ### Changed
+- Smooth PNG tracing is now the default for pubspec, CLI, and programmatic generation. Fitting adapts to source resolution, preserves confident alpha samples, and uses alpha-aware diagonal connectivity.
 - Split generate argument parsing from CLI dispatch and replaced expected failure stack traces with actionable messages.
 - Made artifact replacement atomic per file and kept generated font setup paths relative to the selected pubspec.
 - Enabled strict analyzer casts, inference, and raw-type checks.
 
 ### Fixed
+- Keep blank PNG glyphs blank without replacing other OTF glyphs with fallback boxes.
+- Correct SVG rotation around an explicit center, preserving repeated radial patterns.
+- Share bounded arc sampling between OTF and TTF so SVG arc-based shapes do not become coarse polygons.
 - Reject icon and class names that cannot produce valid Dart identifiers, including reserved keywords.
 - Escape configured font family and package strings in generated Dart source.
 - Prevent font and Dart class outputs from targeting the same file.

@@ -1,6 +1,6 @@
 name: icongine
 description: "An icon font generator for SVG and PNG assets. Generates TTF/OTF fonts and typed IconData APIs."
-version: 1.1.0
+version: 1.2.0
 homepage: https://github.com/g-turley/icongine
 repository: https://github.com/g-turley/icongine
 issue_tracker: https://github.com/g-turley/icongine/issues

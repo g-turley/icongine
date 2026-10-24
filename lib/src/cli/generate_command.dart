@@ -6,6 +6,7 @@ import 'package:yaml/yaml.dart';
 import '../domain/config.dart';
 import '../domain/config_parser.dart';
 import '../domain/font_format.dart';
+import '../domain/png_tracing_mode.dart';
 import '../pipeline/builder.dart';
 import '../pipeline/generation_orchestrator.dart';
 
@@ -19,6 +20,7 @@ class GenerateConfigOverrides {
     this.includeSubdirs,
     this.prefixWithSubdir,
     this.fontFormat,
+    this.pngTracing,
     this.normalize,
     this.verbose,
     this.staticIconProvider,
@@ -32,6 +34,7 @@ class GenerateConfigOverrides {
   final bool? includeSubdirs;
   final bool? prefixWithSubdir;
   final FontFormat? fontFormat;
+  final PngTracingMode? pngTracing;
   final bool? normalize;
   final bool? verbose;
   final bool? staticIconProvider;
@@ -46,6 +49,7 @@ class GenerateConfigOverrides {
       includeSubdirs == null &&
       prefixWithSubdir == null &&
       fontFormat == null &&
+      pngTracing == null &&
       normalize == null &&
       verbose == null &&
       staticIconProvider == null &&
@@ -64,6 +68,7 @@ class GenerateConfigOverrides {
       includeSubdirs: includeSubdirs ?? baseConfig.includeSubdirs,
       prefixWithSubdir: prefixWithSubdir ?? baseConfig.prefixWithSubdir,
       fontFormat: fontFormat ?? baseConfig.fontFormat,
+      pngTracing: pngTracing ?? baseConfig.pngTracing,
       glyphEmissionMode: baseConfig.glyphEmissionMode,
       normalize: normalize ?? baseConfig.normalize,
       verbose: verbose ?? baseConfig.verbose,
@@ -145,6 +150,7 @@ class GenerateIconsCommand {
       includeSubdirs: resolvedConfig.includeSubdirs,
       prefixWithSubdir: resolvedConfig.prefixWithSubdir,
       fontFormat: resolvedConfig.fontFormat,
+      pngTracing: resolvedConfig.pngTracing,
       glyphEmissionMode: resolvedConfig.glyphEmissionMode,
       normalize: resolvedConfig.normalize,
       verbose: resolvedConfig.verbose,

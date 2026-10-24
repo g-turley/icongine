@@ -31,6 +31,26 @@ contours; PNG alpha masks become contour loops. Both paths then use the same
 normalization, winding, and font writers. TTF and OTF writers share SFNT table
 building where their formats permit it.
 
+PNG tracing is selected by `png_tracing` (`smooth` by default). It uses
+marching squares over alpha samples at pixel centers, with transparent padding
+and alpha saddle disambiguation: isolated diagonal samples join to retain thin
+strokes, while thicker regions follow the bilinear saddle to preserve gaps.
+Directed edges establish winding without centroid guesses. Curve fitting works
+in source-pixel units: at up to 64px, 0.15px polygon simplification and controls
+constrained to 0.18px of each chord. Larger sources scale those tolerances up to
+0.30px and 0.36px respectively, guided by the [scale study](png-tracing-study.md).
+Half-pixel bevels between long perpendicular edges may be restored to sharp
+corners. Before accepting a fit, a guard checks confident alpha samples, winding,
+nesting, bounds, and crossings on curves sampled at 16 steps. A failed check
+retains the interpolated line loops for the whole glyph. More than 128 loops,
+16384 raw boundary vertices, or 8192 estimated curve-sampling vertices also
+bypass fitting, bounding topology-check costs without dropping details. Soft
+alpha samples (25–75%) encode coverage and may change classification within the
+fit tolerance. `pixel` bypasses
+smoothing and retains exact thresholded pixel boundaries.
+Existing custom `GlyphCompilationFacade` implementations keep their contract;
+implement `PngTracingGlyphCompilationFacade` to receive the selected PNG mode.
+
 ## Invariants
 
 - The same ordered inputs and configuration produce the same code points and

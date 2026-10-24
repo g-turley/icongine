@@ -72,9 +72,9 @@ class OtfWriter implements FontWriter {
     // Choose CFF glyph program strategy:
     // - contour-based when contour data exists
     // - metrics fallback otherwise
-    final hasContourData =
-        contourPaths.length == glyphs.length &&
-        contourPaths.every((path) => path.contours.isNotEmpty);
+    // Empty contours are valid blank glyphs, including detail lost in a tiny
+    // PNG. They must not switch every other glyph to the metrics fallback.
+    final hasContourData = contourPaths.length == glyphs.length;
 
     final CffEncoder encoder;
     if (hasContourData) {

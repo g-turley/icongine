@@ -2,6 +2,7 @@ import 'package:path/path.dart' as path;
 
 import '../core/case_ext.dart';
 import 'font_format.dart';
+import 'png_tracing_mode.dart';
 
 /// Controls which glyphs are emitted by the generation pipeline.
 enum GlyphEmissionMode { all, basicShapesOnly }
@@ -19,6 +20,7 @@ class GenerationConfig {
     this.includeSubdirs = false,
     this.prefixWithSubdir = false,
     this.fontFormat = FontFormat.otf,
+    this.pngTracing = PngTracingMode.smooth,
     this.glyphEmissionMode = GlyphEmissionMode.all,
     this.normalize = false,
     this.verbose = false,
@@ -79,6 +81,9 @@ class GenerationConfig {
 
   /// Font container format used for the generated asset.
   final FontFormat fontFormat;
+
+  /// PNG tracing strategy. Smooth alpha-aware outlines are the default.
+  final PngTracingMode pngTracing;
 
   /// Glyph emission mode used by low-level generators.
   final GlyphEmissionMode glyphEmissionMode;

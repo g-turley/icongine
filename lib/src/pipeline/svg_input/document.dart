@@ -462,17 +462,10 @@ class SvgTransformMatrix {
             final cx = args[1];
             final cy = args[2];
             commandMatrix =
-                SvgTransformMatrix(a: 1, b: 0, c: 0, d: 1, e: cx, f: cy)
+                SvgTransformMatrix(a: 1, b: 0, c: 0, d: 1, e: -cx, f: -cy)
                     .then(rotation)
                     .then(
-                      SvgTransformMatrix(
-                        a: 1,
-                        b: 0,
-                        c: 0,
-                        d: 1,
-                        e: -cx,
-                        f: -cy,
-                      ),
+                      SvgTransformMatrix(a: 1, b: 0, c: 0, d: 1, e: cx, f: cy),
                     );
           }
           matrix = commandMatrix.then(matrix);

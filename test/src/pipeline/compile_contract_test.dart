@@ -85,6 +85,20 @@ void main() {
   });
 
   group('SvgFontCompiler _resolveUnitsPerEm', () {
+    test('forwards PNG tracing to glyph compilation', () {
+      final facade = _RecordingGlyphCompilationFacade();
+      SvgFontCompiler(glyphCompilationFacade: facade).compile(
+        config: GenerationConfig(
+          packageName: 'sample',
+          inputDir: 'icons',
+          outClassFile: 'icons.dart',
+          outFontFile: 'icons.otf',
+          pngTracing: PngTracingMode.smooth,
+        ),
+        symbols: const [],
+      );
+      expect(facade.receivedPngTracing, PngTracingMode.smooth);
+    });
     test('uses TtfWriter unitsPerEm when format is ttf', () {
       // Line 96: TtfWriter branch in _resolveUnitsPerEm
       final facade = _RecordingGlyphCompilationFacade();
@@ -262,7 +276,8 @@ void main() {
   );
 }
 
-class _RecordingGlyphCompilationFacade implements GlyphCompilationFacade {
+class _RecordingGlyphCompilationFacade
+    implements PngTracingGlyphCompilationFacade {
   _RecordingGlyphCompilationFacade({List<FontGlyph>? returnedGlyphs})
     : returnedGlyphs = returnedGlyphs ?? _defaultReturnedGlyphs;
 
@@ -270,6 +285,7 @@ class _RecordingGlyphCompilationFacade implements GlyphCompilationFacade {
   int? receivedStartCodePoint;
   int? receivedTargetUnitsPerEm;
   bool? receivedNormalize;
+  PngTracingMode? receivedPngTracing;
 
   static const _defaultReturnedGlyphs = [
     FontGlyph(
@@ -288,11 +304,13 @@ class _RecordingGlyphCompilationFacade implements GlyphCompilationFacade {
     required int startCodePoint,
     required int targetUnitsPerEm,
     required bool normalize,
+    PngTracingMode pngTracing = PngTracingMode.smooth,
   }) {
     receivedSymbols = symbols;
     receivedStartCodePoint = startCodePoint;
     receivedTargetUnitsPerEm = targetUnitsPerEm;
     receivedNormalize = normalize;
+    receivedPngTracing = pngTracing;
     return returnedGlyphs;
   }
 }

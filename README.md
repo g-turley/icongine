@@ -3,16 +3,28 @@
 `icongine` is an icon font generator that turns SVG and PNG assets into
 TTF or OTF fonts plus typed `IconData` APIs.
 
-If users are searching for an icon font generator then `icongine` is designed for that workflow.
-
 It is built for repeatable icon pipelines:
 
 - Generates OTF or TTF icon fonts from a folder of SVG or PNG files
+- Smooths PNG alpha edges by default, including small antialiased icons
 - Produces a typed Dart API with one icon constant per glyph
 - Optionally generates an `all` map for searchable icon catalogs
 - Adds per-glyph SVG preview docs to the generated API
 - Keeps naming stable with deterministic collision handling
 - Works from `pubspec.yaml`, CLI flags, or programmatic invocation
+
+## From source art to a font
+
+Curves, sharp corners, strokes, organic shapes, radial patterns, and cutouts
+can all become monochrome font glyphs. These are actual renders from generated
+OTF and TTF files, alongside independently rendered source previews:
+
+![SVG and PNG inputs converted into rendered OTF and TTF glyphs, including thin strokes, basket outlines, continents, a radial pattern, and 25 cutouts.](doc/images/source-to-font.png)
+
+Most PNG inputs above are 64×64. The fine radial pattern uses 256×256 so its
+narrow gaps survive. OTF and TTF share the same design; minor rasterization
+differences are possible. Source colors become a single silhouette defined by
+transparency.
 
 ## Quick start
 
@@ -100,6 +112,7 @@ All options can be set in `pubspec.yaml`. CLI flags override the matching
 | `include_subdirs` | `false` | Recurse into nested icon directories. |
 | `prefix_with_subdir` | `false` | Prefix generated icon names with relative subdirectory names. |
 | `normalize` | `false` | Normalize icons to a shared source box before fitting to the em square. |
+| `png_tracing` | `smooth` | PNG outlines: alpha-aware curves by default, `pixel` for exact pixel edges, or `legacy` to reproduce older output. SVGs are unaffected. |
 | `verbose` | `false` | Print more generation details. |
 | `static_icon_provider` | `true` | Add Flutter's tree-shaking annotation to the generated icon class. |
 | `generate_icon_map` | `false` | Generate `static const Map<String, IconData> all` for catalog-style UIs. |
@@ -202,16 +215,63 @@ system. If `verbose` is enabled, it also reports which glyphs were modified.
 
 ## PNG support
 
-PNG input is supported for monochrome-style source art with transparency:
+PNG input uses transparency as a monochrome silhouette; RGB colors are ignored.
+Use a transparent background: opaque white pixels are filled too.
+**Smooth tracing is the default in 1.2.0**, so no extra configuration is needed. It uses
+partial alpha values to locate edges between pixels, then fits corner-aware
+curves. It protects holes, thin strokes, and separated regions while retaining
+safe line contours when a curve would damage the shape.
 
-- Opaque or semi-opaque pixels are treated as filled geometry.
-- Raster fills are converted into merged pixel-aligned rectangles before font compilation.
-- Transparent pixels are ignored.
-- A resolution of 512x512 is recommended, but depending on your icon a lower resolution may still produce satisfactory results.
+### Choosing a source size
 
-PNG sources work best for crisp silhouette assets with transparent backgrounds.
-Because fonts are vector outlines, raster antialiasing is not preserved, and
-low-resolution PNGs will produce visibly blocky glyphs.
+**Start with a real 64×64 source for ordinary icons.** Simple shapes can work
+well at 16–32px; detailed shapes benefit from 128px. Dense linework and very
+narrow gaps can still require 256–512px or SVG. Upscaling an existing tiny PNG
+cannot restore missing detail.
+
+![Actual font renders from 16, 32, 64, 128 and 512 pixel PNG inputs, showing simple shapes, thin strokes, organic detail, radial patterns and cutouts.](doc/images/png-resolution.png)
+
+We tested eight designs at nine sizes from 16px to 512px. At 64px, median
+silhouette overlap against independent SVG references was **99.1% for simple
+designs** and **96.6% for detailed designs**; detailed designs reached **98.1%
+at 128px**. These results describe this fixture set at a 256px render size,
+not a guarantee for every PNG. Tiny gaps can disappear even when an overall
+shape looks close. See the [scale study and reproduction steps](doc/png-tracing-study.md)
+for measurements, topology checks, limitations, and source provenance.
+
+The library adjusts fitting tolerances for larger source canvases automatically.
+It does not resize your image or add an external tracing dependency.
+
+### Tracing modes
+
+The default can be written explicitly:
+
+```yaml
+icongine:
+  png_tracing: smooth
+```
+
+Or run `dart run icongine --png-tracing smooth`.
+
+- `smooth` interpolates alpha boundaries and fits cubic curves. Confident
+  interior/exterior samples, nesting, winding, bounds, and sampled crossings
+  guard against damaged shapes. Ambiguous antialiased edge samples may move
+  within the fit tolerance. Diagonal stroke samples can connect while thick
+  nearby regions stay separate. Unsafe or excessively complex fits retain
+  interpolated line contours.
+- `pixel` traces exact boundaries of pixels with alpha ≥50%, without smoothing;
+  use it for intentional pixel art. Diagonally touching pixels remain separate.
+- `legacy` keeps the original thresholded tracing and smoothing. Set
+  `png_tracing: legacy` or use `--png-tracing legacy` to reproduce older PNG
+  output when upgrading.
+
+Smooth tracing works best with antialiased transparency. Binary alpha can also
+be smoothed, but missing details cannot be recovered. Use `pixel` for intentional
+pixel art. SVGs enter through their vector geometry and do not use PNG tracing.
+
+To inspect actual OTF and TTF output from generated 16×16 fixtures, run
+`dart run tool/compare_png_tracing.dart --serve` and open
+`http://127.0.0.1:5174`. The fixtures and fonts are written to `build/png_tracing/`.
 
 ## Programmatic usage
 
@@ -249,7 +309,7 @@ Legend: ✅ fully supported, ⚠️ partially supported, ❌ not supported
 ## Known limitations
 
 - Output glyphs are monochrome geometry, so color, gradients, and similar paint effects are not preserved.
-- PNG input is alpha-thresholded into pixel-aligned geometry rather than bezier-traced outlines.
+- PNG outlines depend on `png_tracing`; smooth tracing uses interpolated alpha contours and cubic curves, while pixel mode retains the raster grid.
 - Units are treated numerically for supported attributes; advanced CSS unit semantics are not fully modeled.
 - Stroke expansion is geometric approximation, so tiny visual differences from the source SVG can occur.
 - SVG features that depend on rendering effects instead of explicit paths should be converted to paths before running `icongine`.

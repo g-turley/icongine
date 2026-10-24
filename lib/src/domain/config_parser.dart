@@ -1,5 +1,6 @@
 import 'config.dart';
 import 'font_format.dart';
+import 'png_tracing_mode.dart';
 
 /// Parses `pubspec.yaml` input into a [GenerationConfig].
 class GenerationConfigParser {
@@ -52,6 +53,9 @@ class GenerationConfigParser {
         false,
       ),
       fontFormat: fontFormat,
+      pngTracing: PngTracingMode.parse(
+        _readAliased(section, 'png_tracing', 'pngTracing', 'smooth'),
+      ),
       normalize: _readAliased(section, 'normalize', 'normalize', false),
       verbose: _readAliased(section, 'verbose', 'verbose', false),
       staticIconProvider: _readAliased(

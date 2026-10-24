@@ -92,12 +92,21 @@ class SvgFontCompiler implements IconCompiler {
     final FontWriter fontWriter = fontWriterFactory.resolve(config.fontFormat);
 
     final targetUnitsPerEm = _resolveUnitsPerEm(fontWriter);
-    final glyphs = glyphCompilationFacade.compileGlyphs(
-      symbols: symbols,
-      startCodePoint: _startCodePoint,
-      targetUnitsPerEm: targetUnitsPerEm,
-      normalize: config.normalize,
-    );
+    final facade = glyphCompilationFacade;
+    final glyphs = facade is PngTracingGlyphCompilationFacade
+        ? facade.compileGlyphs(
+            symbols: symbols,
+            startCodePoint: _startCodePoint,
+            targetUnitsPerEm: targetUnitsPerEm,
+            normalize: config.normalize,
+            pngTracing: config.pngTracing,
+          )
+        : facade.compileGlyphs(
+            symbols: symbols,
+            startCodePoint: _startCodePoint,
+            targetUnitsPerEm: targetUnitsPerEm,
+            normalize: config.normalize,
+          );
     final normalizationDiagnostics = _buildNormalizationDiagnostics(
       glyphs: glyphs,
       normalize: config.normalize,

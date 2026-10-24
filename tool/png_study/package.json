@@ -1,0 +1,6 @@
+{
+  "name": "icongine-png-study",
+  "private": true,
+  "description": "Development-only independent SVG rasterization for README evidence",
+  "dependencies": { "sharp": "0.35.5" }
+}

@@ -8,6 +8,27 @@ import 'package:icongine/src/pipeline/contour/contour_flattener.dart';
 // 119        - flattenArcToPoints: params==null branch (degenerate arc)
 
 void main() {
+  test('font arc flattening bounds midpoint chord error in font units', () {
+    final arc = SvgContourSegment.arc(
+      start: const SvgPoint(256, 64),
+      end: const SvgPoint(256, 448),
+      rx: 192,
+      ry: 192,
+      xAxisRotation: 0,
+      largeArc: false,
+      sweep: true,
+    );
+    final points = [
+      arc.start,
+      ...flattenArcToPoints(arc, curveSteps: 32, maxError: 0.25),
+    ];
+    for (var i = 0; i < points.length - 1; i++) {
+      final dx = (points[i].x + points[i + 1].x) / 2 - 256;
+      final dy = (points[i].y + points[i + 1].y) / 2 - 256;
+      final radiusSquared = dx * dx + dy * dy;
+      expect(radiusSquared, greaterThanOrEqualTo(191.75 * 191.75 - 1e-8));
+    }
+  });
   group('computeArcCenterParams', () {
     test('returns null for arc with coincident start and end points', () {
       // Lines 55-57: coincident endpoints guard

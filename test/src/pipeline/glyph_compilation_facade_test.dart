@@ -194,7 +194,7 @@ void main() {
       expect(sourceBounds.maxY, closeTo(9.0, 0.2));
     });
 
-    test('compiles PNG alpha masks into glyph contours', () {
+    test('legacy mode retains thresholded PNG alpha-mask bounds', () {
       final pngFile = File('${tempDir.path}/pixel_shape.png');
       final rasterImage = image.Image(width: 4, height: 4, numChannels: 4);
       for (var y = 0; y < rasterImage.height; y += 1) {
@@ -215,6 +215,7 @@ void main() {
           outFontFile: '${tempDir.path}/out.otf',
           outClassFile: '${tempDir.path}/out.dart',
           fontFormat: FontFormat.otf,
+          pngTracing: PngTracingMode.legacy,
           normalize: false,
         ),
         symbols: [

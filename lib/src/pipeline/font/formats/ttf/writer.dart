@@ -174,6 +174,7 @@ class TtfWriter implements FontWriter {
     final flattened = flattenContourToPolyline(
       contour,
       curveSteps: curveFlattenSteps,
+      arcMaxError: 0.25,
     );
     if (flattened.isEmpty) {
       return const [];

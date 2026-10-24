@@ -1,6 +1,7 @@
 import 'package:args/args.dart';
 
 import '../domain/font_format.dart';
+import '../domain/png_tracing_mode.dart';
 import 'generate_command.dart';
 
 /// Parsed arguments for one generate invocation.
@@ -65,6 +66,9 @@ GenerateArguments parseGenerateArguments(List<String> args) {
       includeSubdirs: _readOptionalBool(parsed, 'include-subdirs'),
       prefixWithSubdir: _readOptionalBool(parsed, 'prefix-with-subdir'),
       fontFormat: _parseOptionalFontFormat(parsed),
+      pngTracing: parsed.wasParsed('png-tracing')
+          ? PngTracingMode.parse(parsed['png-tracing'] as String)
+          : null,
       normalize: _readOptionalBool(parsed, 'normalize'),
       verbose: _readOptionalBool(parsed, 'verbose'),
       staticIconProvider: _readOptionalBool(parsed, 'static-icon-provider'),
@@ -86,6 +90,7 @@ void writeEffectiveConfig(
     'output_class': args.overrides.outClassFile,
     'name': args.overrides.className,
     'font_format': args.overrides.fontFormat?.name,
+    'png_tracing': args.overrides.pngTracing?.name,
     'include_subdirs': args.overrides.includeSubdirs,
     'prefix_with_subdir': args.overrides.prefixWithSubdir,
     'normalize': args.overrides.normalize,
@@ -143,6 +148,14 @@ ArgParser buildGenerateParser() {
       valueHelp: 'otf|ttf',
       allowed: ['otf', 'ttf'],
       help: 'Font format (pubspec: font_format). Fallback: otf.',
+    )
+    ..addOption(
+      'png-tracing',
+      valueHelp: 'legacy|smooth|pixel',
+      allowed: ['legacy', 'smooth', 'pixel'],
+      help:
+          'PNG outlines: smooth alpha tracing or exact pixel edges. '
+          'Default: smooth. Use legacy to reproduce older PNG output.',
     )
     ..addFlag(
       'include-subdirs',
