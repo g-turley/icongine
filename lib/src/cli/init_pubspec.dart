@@ -106,13 +106,11 @@ class InitPubspec {
       }
     }
 
-    set('name', args.className ?? defaults['name'] ?? 'AppIcons', [
-      'class_name',
-      'className',
-    ], force: args.className != null);
-    set('input_dir', args.inputDir ?? defaults['input_dir'] ?? 'assets/icons', [
-      'inputDir',
-    ], force: args.inputDir != null);
+    final className = args.className ?? defaults['name'] ?? 'AppIcons';
+    const classAliases = ['class_name', 'className'];
+    set('name', className, classAliases, force: args.className != null);
+    final inputDir = args.inputDir ?? defaults['input_dir'] ?? 'assets/icons';
+    set('input_dir', inputDir, ['inputDir'], force: args.inputDir != null);
     final existing = editor.parseAt(configPath) as YamlMap;
     final defaultFormat =
         existing['font_format'] ?? existing['fontFormat'] ?? 'otf';
@@ -146,9 +144,8 @@ class InitPubspec {
         'The font destination must end in .otf or .ttf.',
       );
     }
-    set('font_format', extension.substring(1), [
-      'fontFormat',
-    ], force: args.outputFont != null);
+    final format = extension.substring(1);
+    set('font_format', format, ['fontFormat'], force: args.outputFont != null);
     set('include_subdirs', true, ['includeSubdirs']);
     set('prefix_with_subdir', true, ['prefixWithSubdir']);
     set('png_tracing', 'smooth', ['pngTracing']);
