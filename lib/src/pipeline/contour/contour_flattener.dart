@@ -104,12 +104,15 @@ ArcCenterParams? computeArcCenterParams(SvgContourSegment segment) {
 /// Flattens an arc segment into sample points using center parametrization.
 ///
 /// [curveSteps] controls the total sampling budget for a full circle;
-/// partial arcs use a proportional fraction. Returns `[segment.end]` for
+/// partial arcs use a proportional fraction. [maxError], when set, increases
+/// sampling to bound chord error in the segment's coordinate units.
+/// Returns `[segment.end]` for
 /// degenerate arcs (zero radius, coincident endpoints, etc.).
 List<SvgPoint> flattenArcToPoints(
   SvgContourSegment segment, {
   required int curveSteps,
   int minSteps = 1,
+  double? maxError,
 }) {
   final rx = segment.rx ?? 0;
   final ry = segment.ry ?? 0;
@@ -119,7 +122,17 @@ List<SvgPoint> flattenArcToPoints(
   if (params == null) return [segment.end];
 
   final normalizedSweep = params.deltaTheta.abs() / (2 * math.pi);
-  final stepCount = math.max(minSteps, (normalizedSweep * curveSteps).ceil());
+  var stepCount = math.max(minSteps, (normalizedSweep * curveSteps).ceil());
+  if (maxError != null && maxError > 0) {
+    final radius = math.max(params.rx, params.ry);
+    final maxAngle = 2 * math.acos((1 - maxError / radius).clamp(-1.0, 1.0));
+    if (maxAngle > 0) {
+      stepCount = math.max(
+        stepCount,
+        (params.deltaTheta.abs() / maxAngle).ceil(),
+      );
+    }
+  }
 
   final points = <SvgPoint>[];
   for (var step = 1; step <= stepCount; step += 1) {
@@ -149,6 +162,7 @@ List<SvgPoint> flattenArcToPoints(
 List<SvgPoint> flattenContourToPolyline(
   SvgContour contour, {
   int curveSteps = 8,
+  double? arcMaxError,
 }) {
   if (contour.segments.isEmpty) return const [];
 
@@ -194,7 +208,14 @@ List<SvgPoint> flattenContourToPolyline(
           );
         }
       case SvgContourSegmentType.arc:
-        points.addAll(flattenArcToPoints(segment, curveSteps: 32, minSteps: 4));
+        points.addAll(
+          flattenArcToPoints(
+            segment,
+            curveSteps: 32,
+            minSteps: 4,
+            maxError: arcMaxError,
+          ),
+        );
     }
   }
 

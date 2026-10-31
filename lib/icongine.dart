@@ -36,6 +36,7 @@ export 'src/core/case_ext.dart';
 export 'src/domain/config.dart';
 export 'src/domain/config_parser.dart';
 export 'src/domain/font_format.dart';
+export 'src/domain/png_tracing_mode.dart';
 export 'src/domain/icon_file.dart';
 export 'src/domain/icon_symbol.dart';
 export 'src/domain/naming.dart';

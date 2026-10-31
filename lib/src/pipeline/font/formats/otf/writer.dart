@@ -6,6 +6,7 @@ import '../../cff_contour_program_strategy.dart';
 import '../../font_glyph.dart';
 import '../../font_writer.dart';
 import '../../sfnt.dart';
+import '../../../contour/contour.dart';
 import '../ttf/writer.dart';
 import 'table_builders.dart';
 
@@ -40,7 +41,7 @@ class OtfWriter implements FontWriter {
 
     // Build CFF glyph metrics and contour paths.
     final cffGlyphMetrics = <CffGlyphMetrics>[];
-    final contourPaths = <dynamic>[];
+    final contourPaths = <SvgContourPath>[];
     var globalXMin = 0;
     var globalYMin = 0;
     var globalXMax = 0;
@@ -71,15 +72,15 @@ class OtfWriter implements FontWriter {
     // Choose CFF glyph program strategy:
     // - contour-based when contour data exists
     // - metrics fallback otherwise
-    final hasContourData =
-        contourPaths.length == glyphs.length &&
-        contourPaths.every((path) => path.contours.isNotEmpty);
+    // Empty contours are valid blank glyphs, including detail lost in a tiny
+    // PNG. They must not switch every other glyph to the metrics fallback.
+    final hasContourData = contourPaths.length == glyphs.length;
 
     final CffEncoder encoder;
     if (hasContourData) {
       encoder = CffEncoder(
         glyphProgramStrategy: ContourCffGlyphProgramStrategy(
-          contourPaths: List.from(contourPaths),
+          contourPaths: contourPaths,
           advanceWidth: advanceWidth,
         ),
       );

@@ -8,6 +8,32 @@ void main() {
   group('GenerateIconsCommand', () {
     late Directory tempDir;
 
+    test(
+      'preserves and overrides PNG tracing through path resolution',
+      () async {
+        final pubspec = File(path.join(tempDir.path, 'pubspec.yaml'));
+        await pubspec.writeAsString(
+          'name: sample\nicongine:\n  png_tracing: smooth\n',
+        );
+        const command = GenerateIconsCommand();
+        expect(
+          (await command.resolveConfig(pubspecPath: pubspec.path)).pngTracing,
+          PngTracingMode.smooth,
+        );
+        const overrides = GenerateConfigOverrides(
+          pngTracing: PngTracingMode.pixel,
+        );
+        expect(overrides.isEmpty, isFalse);
+        expect(
+          (await command.resolveConfig(
+            pubspecPath: pubspec.path,
+            overrides: overrides,
+          )).pngTracing,
+          PngTracingMode.pixel,
+        );
+      },
+    );
+
     setUp(() async {
       tempDir = await Directory.systemTemp.createTemp('icongine_cli_');
     });
@@ -45,6 +71,10 @@ icongine:
       expect(
         runner.capturedConfig!.outFontFile,
         path.join(tempDir.path, 'assets', 'fonts', 'custom.otf'),
+      );
+      expect(
+        runner.capturedConfig!.fontAssetPath,
+        path.join('assets', 'fonts', 'custom.otf'),
       );
       expect(
         runner.capturedConfig!.outClassFile,

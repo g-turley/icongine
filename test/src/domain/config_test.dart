@@ -86,6 +86,56 @@ void main() {
       );
     });
 
+    test('throws when the generated class name is not a Dart identifier', () {
+      expect(
+        () => GenerationConfig(
+          packageName: 'sample',
+          inputDir: 'assets/icons',
+          outFontFile: 'assets/fonts/icons.otf',
+          outClassFile: 'lib/app_icons.dart',
+          className: '123 icons',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('throws when the font family name contains a line break', () {
+      expect(
+        () => GenerationConfig(
+          packageName: 'sample',
+          inputDir: 'assets/icons',
+          outFontFile: 'assets/fonts/icons.otf',
+          outClassFile: 'lib/app_icons.dart',
+          className: 'App\nIcons',
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('throws when output paths refer to the same file', () {
+      expect(
+        () => GenerationConfig(
+          packageName: 'sample',
+          inputDir: 'assets/icons',
+          outFontFile: path.absolute('build/icons.otf'),
+          outClassFile: path.join('build', '.', 'icons.otf'),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('keeps a pubspec-relative font asset path', () {
+      final config = GenerationConfig(
+        packageName: 'sample',
+        inputDir: 'assets/icons',
+        outFontFile: path.join('/tmp', 'project', 'assets', 'icons.otf'),
+        fontAssetPath: 'assets/fonts/icons.otf',
+        outClassFile: path.join('/tmp', 'project', 'lib', 'app_icons.dart'),
+      );
+
+      expect(config.fontAssetPath, 'assets/fonts/icons.otf');
+    });
+
     test('creates relative asset path from inputDir', () {
       final config = GenerationConfig(
         packageName: 'sample',

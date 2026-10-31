@@ -69,6 +69,47 @@ void main() {
       expect(bytes.isNotEmpty, isTrue);
     });
 
+    test(
+      'a blank PNG glyph does not replace other glyphs with metric boxes',
+      () {
+        final visible = singleCircleGlyph.single;
+        final bytes = writer.write(
+          familyName: 'TestIcons',
+          glyphs: [
+            visible,
+            const FontGlyph(
+              name: 'blank',
+              codePoint: 0xe002,
+              glyphId: 2,
+              sourceWidth: 16,
+              sourceHeight: 16,
+              compiledContourPath: SvgContourPath(contours: []),
+            ),
+          ],
+        );
+        final table = readCffTable(bytes);
+        final nameIndex = readCffIndex(table, 4);
+        final dictIndex = readCffIndex(table, nameIndex.nextOffset);
+        final strings = readCffIndex(
+          table,
+          readCffInt32BeforeOperator(dictIndex.objects.first, 17),
+        );
+        final expected =
+            ContourCffGlyphProgramStrategy(
+              contourPaths: [visible.compiledContourPath!],
+              advanceWidth: 576,
+            ).buildGlyphProgram(
+              glyphIndex: 0,
+              glyph: const CffGlyphMetrics(xMax: 512, yMax: 512),
+            );
+        expect(strings.objects[1], expected);
+        final blank = BytesBuilder();
+        const Type2CharstringEncoder().writeNumber(blank, 576);
+        blank.add([Type2CharstringEncoder.operatorEndchar]);
+        expect(strings.objects[2], blank.takeBytes());
+      },
+    );
+
     test('writes OTTO scaler type in SFNT header', () {
       final bytes = writer.write(
         familyName: 'TestIcons',

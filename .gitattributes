@@ -1,0 +1,11 @@
+* text=auto
+
+*.dart text eol=lf
+*.md text eol=lf
+*.svg text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+*.otf binary
+*.png binary
+*.ttf binary

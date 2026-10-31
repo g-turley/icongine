@@ -324,6 +324,12 @@ void main() {
       // Verify that a 90-degree rotation is embedded (cos90=0, sin90=1)
       // The 'a' component of the rotation part should be ~0
       expect(transform.a.abs(), lessThan(0.01));
+      final center = transform.applyToPoint(const SvgPoint(50, 50));
+      expect(center.x, closeTo(50, 1e-8));
+      expect(center.y, closeTo(50, 1e-8));
+      final right = transform.applyToPoint(const SvgPoint(60, 50));
+      expect(right.x, closeTo(50, 1e-8));
+      expect(right.y, closeTo(60, 1e-8));
     });
 
     test('parses skewX transform', () {

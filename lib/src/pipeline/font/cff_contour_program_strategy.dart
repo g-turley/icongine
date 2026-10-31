@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'dart:math' as math;
 
 import '../contour/contour.dart';
+import '../contour/contour_flattener.dart';
 import 'cff.dart';
 import 'type2_charstring_encoder.dart';
 
@@ -114,6 +114,9 @@ class ContourCffGlyphProgramStrategy implements CffGlyphProgramStrategy {
       // Contours are closed implicitly by the next rmoveto or endchar.
     }
 
+    if (isFirstOperator) {
+      encoder.writeNumber(program, advanceWidth);
+    }
     program.add([Type2CharstringEncoder.operatorEndchar]);
     return program.takeBytes();
   }
@@ -197,7 +200,12 @@ class ContourCffGlyphProgramStrategy implements CffGlyphProgramStrategy {
     double currentX,
     double currentY,
   ) {
-    final points = _flattenArcSegment(segment);
+    final points = flattenArcToPoints(
+      segment,
+      curveSteps: 32,
+      minSteps: 4,
+      maxError: 0.25,
+    );
     var cursorX = currentX;
     var cursorY = currentY;
     for (final point in points) {
@@ -255,124 +263,4 @@ class ContourCffGlyphProgramStrategy implements CffGlyphProgramStrategy {
 
     return (endXInt.toDouble(), endYInt.toDouble());
   }
-
-  List<SvgPoint> _flattenArcSegment(SvgContourSegment segment) {
-    final params = _arcCenterParams(segment);
-    if (params == null) {
-      return [segment.end];
-    }
-
-    final stepCount = math.max(
-      6,
-      ((params.deltaTheta.abs() / (2 * math.pi)) * 24).ceil(),
-    );
-    final points = <SvgPoint>[];
-    for (var step = 1; step <= stepCount; step += 1) {
-      final t = step / stepCount;
-      final theta = params.theta1 + params.deltaTheta * t;
-      final cosTheta = math.cos(theta);
-      final sinTheta = math.sin(theta);
-      points.add(
-        SvgPoint(
-          params.cosPhi * params.rx * cosTheta -
-              params.sinPhi * params.ry * sinTheta +
-              params.cx,
-          params.sinPhi * params.rx * cosTheta +
-              params.cosPhi * params.ry * sinTheta +
-              params.cy,
-        ),
-      );
-    }
-    return points;
-  }
-
-  _ArcCenterParams? _arcCenterParams(SvgContourSegment segment) {
-    final rxInput = segment.rx ?? 0;
-    final ryInput = segment.ry ?? 0;
-    if (rxInput <= 0 || ryInput <= 0) return null;
-
-    final start = segment.start;
-    final end = segment.end;
-    final phi = (segment.xAxisRotation ?? 0) * (math.pi / 180);
-    final cosPhi = math.cos(phi);
-    final sinPhi = math.sin(phi);
-
-    final dx2 = (start.x - end.x) / 2;
-    final dy2 = (start.y - end.y) / 2;
-    final x1Prime = cosPhi * dx2 + sinPhi * dy2;
-    final y1Prime = -sinPhi * dx2 + cosPhi * dy2;
-
-    var rx = rxInput.abs();
-    var ry = ryInput.abs();
-    final lambda =
-        (x1Prime * x1Prime) / (rx * rx) + (y1Prime * y1Prime) / (ry * ry);
-    if (lambda > 1) {
-      final scale = math.sqrt(lambda);
-      rx *= scale;
-      ry *= scale;
-    }
-
-    final rxSq = rx * rx;
-    final rySq = ry * ry;
-    final x1PrimeSq = x1Prime * x1Prime;
-    final y1PrimeSq = y1Prime * y1Prime;
-    final denominator = rxSq * y1PrimeSq + rySq * x1PrimeSq;
-    if (denominator.abs() < 1e-12) return null;
-
-    final numerator = rxSq * rySq - rxSq * y1PrimeSq - rySq * x1PrimeSq;
-    final sign = segment.largeArc == segment.sweep ? -1.0 : 1.0;
-    final factor = sign * math.sqrt(math.max(0, numerator / denominator));
-
-    final cxPrime = factor * (rx * y1Prime / ry);
-    final cyPrime = factor * (-ry * x1Prime / rx);
-    final cx = cosPhi * cxPrime - sinPhi * cyPrime + (start.x + end.x) / 2;
-    final cy = sinPhi * cxPrime + cosPhi * cyPrime + (start.y + end.y) / 2;
-
-    final ux = (x1Prime - cxPrime) / rx;
-    final uy = (y1Prime - cyPrime) / ry;
-    final vx = (-x1Prime - cxPrime) / rx;
-    final vy = (-y1Prime - cyPrime) / ry;
-    final theta1 = math.atan2(uy, ux);
-
-    var deltaTheta = math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
-    final sweepFlag = segment.sweep ?? false;
-    if (!sweepFlag && deltaTheta > 0) {
-      deltaTheta -= 2 * math.pi;
-    } else if (sweepFlag && deltaTheta < 0) {
-      deltaTheta += 2 * math.pi;
-    }
-
-    return _ArcCenterParams(
-      cx: cx,
-      cy: cy,
-      rx: rx,
-      ry: ry,
-      cosPhi: cosPhi,
-      sinPhi: sinPhi,
-      theta1: theta1,
-      deltaTheta: deltaTheta,
-    );
-  }
-}
-
-class _ArcCenterParams {
-  const _ArcCenterParams({
-    required this.cx,
-    required this.cy,
-    required this.rx,
-    required this.ry,
-    required this.cosPhi,
-    required this.sinPhi,
-    required this.theta1,
-    required this.deltaTheta,
-  });
-
-  final double cx;
-  final double cy;
-  final double rx;
-  final double ry;
-  final double cosPhi;
-  final double sinPhi;
-  final double theta1;
-  final double deltaTheta;
 }

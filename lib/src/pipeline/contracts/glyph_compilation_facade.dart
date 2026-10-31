@@ -4,9 +4,11 @@ import 'dart:math' as math;
 import 'package:image/image.dart' as image;
 
 import '../../domain/icon_symbol.dart';
+import '../../domain/png_tracing_mode.dart';
 import '../font/font_glyph.dart';
 import '../contour/contour.dart';
 import '../contour/raster_loop_smoother.dart';
+import '../contour/alpha_contour_tracer.dart';
 import '../contour/rect_clipper.dart';
 import '../contour/stroke_style.dart';
 import '../contour/stroke_to_fill_converter.dart';
@@ -25,7 +27,20 @@ abstract interface class GlyphCompilationFacade {
   });
 }
 
-class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
+/// Optional PNG tracing support without changing existing custom facades.
+abstract interface class PngTracingGlyphCompilationFacade
+    implements GlyphCompilationFacade {
+  @override
+  List<FontGlyph> compileGlyphs({
+    required List<IconSymbol> symbols,
+    required int startCodePoint,
+    required int targetUnitsPerEm,
+    required bool normalize,
+    PngTracingMode pngTracing = PngTracingMode.smooth,
+  });
+}
+
+class SvgGlyphCompilationFacade implements PngTracingGlyphCompilationFacade {
   const SvgGlyphCompilationFacade({
     this.boundsExtractor = const DefaultSvgBoundsExtractor(),
     this.documentExtractor = const SvgDocumentPathExtractor(),
@@ -54,8 +69,11 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     required int startCodePoint,
     required int targetUnitsPerEm,
     required bool normalize,
+    PngTracingMode pngTracing = PngTracingMode.smooth,
   }) {
-    final preparedGlyphs = symbols.map(_prepareGlyph).toList(growable: false);
+    final preparedGlyphs = symbols
+        .map((symbol) => _prepareGlyph(symbol, pngTracing))
+        .toList(growable: false);
     final normalizationPlan = _resolveNormalizationPlan(preparedGlyphs);
 
     final glyphs = <FontGlyph>[];
@@ -107,10 +125,10 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     return glyphs;
   }
 
-  _PreparedGlyph _prepareGlyph(IconSymbol symbol) {
+  _PreparedGlyph _prepareGlyph(IconSymbol symbol, PngTracingMode pngTracing) {
     final sourcePath = symbol.file.absolutePath;
     if (_isPngSource(sourcePath)) {
-      return _preparePngGlyph(symbol);
+      return _preparePngGlyph(symbol, pngTracing);
     }
 
     return _prepareSvgGlyph(symbol);
@@ -195,7 +213,10 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     );
   }
 
-  _PreparedGlyph _preparePngGlyph(IconSymbol symbol) {
+  _PreparedGlyph _preparePngGlyph(
+    IconSymbol symbol,
+    PngTracingMode pngTracing,
+  ) {
     final pngBytes = File(symbol.file.absolutePath).readAsBytesSync();
     final decodedImage = image.decodePng(pngBytes);
     if (decodedImage == null) {
@@ -204,7 +225,12 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
       );
     }
 
-    final rasterContourPath = _buildRasterContourPath(decodedImage);
+    final rasterContourPath = pngTracing == PngTracingMode.smooth
+        ? const AlphaContourTracer().trace(decodedImage)
+        : _buildRasterContourPath(
+            decodedImage,
+            preservePixels: pngTracing == PngTracingMode.pixel,
+          );
     return _PreparedGlyph(
       symbol: symbol,
       svgContent: '',
@@ -443,17 +469,34 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     return sourcePath.toLowerCase().endsWith('.png');
   }
 
-  SvgContourPath _buildRasterContourPath(image.Image rasterImage) {
+  SvgContourPath _buildRasterContourPath(
+    image.Image rasterImage, {
+    required bool preservePixels,
+  }) {
     final mask = _buildRasterMask(rasterImage);
     final boundaryEdges = _extractRasterBoundaryEdges(mask);
     if (boundaryEdges.isEmpty) {
       return const SvgContourPath(contours: []);
     }
 
-    final tracedContours = _traceRasterLoops(boundaryEdges)
-        .map(rasterLoopSmoother.smooth)
-        .where((contour) => contour.segments.isNotEmpty)
-        .toList(growable: false);
+    final tracedContours =
+        _traceRasterLoops(boundaryEdges, preservePixels: preservePixels)
+            .map(
+              (loop) => preservePixels
+                  ? SvgContour(
+                      isClosed: true,
+                      segments: [
+                        for (var i = 0; i < loop.length; i++)
+                          SvgContourSegment.line(
+                            start: loop[i],
+                            end: loop[(i + 1) % loop.length],
+                          ),
+                      ],
+                    )
+                  : rasterLoopSmoother.smooth(loop),
+            )
+            .where((contour) => contour.segments.isNotEmpty)
+            .toList(growable: false);
     return windingCorrector.correct(SvgContourPath(contours: tracedContours));
   }
 
@@ -535,7 +578,10 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
     return edges;
   }
 
-  List<List<SvgPoint>> _traceRasterLoops(List<_RasterEdge> edges) {
+  List<List<SvgPoint>> _traceRasterLoops(
+    List<_RasterEdge> edges, {
+    required bool preservePixels,
+  }) {
     final outgoingEdges = <String, List<_RasterEdge>>{};
     for (final edge in edges) {
       outgoingEdges.putIfAbsent(_pointKey(edge.start), () => []).add(edge);
@@ -558,10 +604,20 @@ class SvgGlyphCompilationFacade implements GlyphCompilationFacade {
         if (candidates == null || candidates.isEmpty) {
           break;
         }
-        final nextEdge = candidates.firstWhere(
-          (candidate) => !visitedEdgeIds.contains(candidate.id),
-          orElse: () => const _RasterEdge.empty(),
-        );
+        var nextEdge = const _RasterEdge.empty();
+        var bestTurn = double.negativeInfinity;
+        for (final candidate in candidates) {
+          if (visitedEdgeIds.contains(candidate.id)) continue;
+          final dx = currentEdge.end.x - currentEdge.start.x;
+          final dy = currentEdge.end.y - currentEdge.start.y;
+          final nx = candidate.end.x - candidate.start.x;
+          final ny = candidate.end.y - candidate.start.y;
+          final turn = math.atan2(dx * ny - dy * nx, dx * nx + dy * ny);
+          if (nextEdge.isEmpty || (preservePixels && turn > bestTurn)) {
+            nextEdge = candidate;
+            bestTurn = turn;
+          }
+        }
         if (nextEdge.isEmpty) {
           break;
         }

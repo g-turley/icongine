@@ -3,6 +3,39 @@ import 'package:test/test.dart';
 
 void main() {
   group('IcongineCli', () {
+    test(
+      'forwards PNG tracing modes from the CLI and rejects invalid values',
+      () async {
+        PngTracingMode? captured;
+        final cli = IcongineCli(
+          runGenerate: ({required pubspecPath, required overrides}) async {
+            captured = overrides.pngTracing;
+            return _report;
+          },
+        );
+        final stdoutLines = <String>[];
+        final stderrLines = <String>[];
+        for (final mode in PngTracingMode.values) {
+          final exit = await cli.run(
+            ['--png-tracing', mode.name, '--verbose'],
+            stdoutWriteln: stdoutLines.add,
+            stderrWriteln: stderrLines.add,
+          );
+          expect(exit, 0);
+          expect(captured, mode);
+          expect(stdoutLines.join('\n'), contains('png_tracing: ${mode.name}'));
+        }
+        expect(
+          await cli.run(
+            ['--png-tracing', 'unknown'],
+            stdoutWriteln: stdoutLines.add,
+            stderrWriteln: stderrLines.add,
+          ),
+          64,
+        );
+        expect(stderrLines.join('\n'), contains('png-tracing'));
+      },
+    );
     test('uses default generate runner wiring when none is provided', () async {
       final stdoutLines = <String>[];
       final stderrLines = <String>[];
@@ -271,6 +304,26 @@ void main() {
 
       expect(exitCode, 1);
       expect(stderrLines.first, contains('icongine generation failed'));
+      expect(stderrLines.join('\n'), isNot(contains('#0')));
+      expect(stderrLines.last, contains('Re-run with `--verbose`'));
+    });
+
+    test('prints an actionable message when no icons are found', () async {
+      final stderrLines = <String>[];
+      final cli = IcongineCli(
+        runGenerate: ({required pubspecPath, required overrides}) =>
+            Future<GenerationReport>.error(NoIconsFoundError('assets/missing')),
+      );
+
+      final exitCode = await cli.run(
+        const ['generate'],
+        stdoutWriteln: (_) {},
+        stderrWriteln: stderrLines.add,
+      );
+
+      expect(exitCode, 66);
+      expect(stderrLines.first, contains('No SVG or PNG icons found'));
+      expect(stderrLines.last, contains('icongine.input_dir'));
     });
 
     test(

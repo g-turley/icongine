@@ -1,5 +1,5 @@
 /// Thrown when no supported icon source files are found in the input directory.
-class NoIconsFoundError extends Error {
+class NoIconsFoundError implements Exception {
   NoIconsFoundError(this.inputDir);
 
   /// Directory that was scanned for icon source files.
@@ -10,7 +10,7 @@ class NoIconsFoundError extends Error {
 }
 
 /// Thrown when the compile step is reached without resolved symbols.
-class NoSymbolsToCompileError extends Error {
+class NoSymbolsToCompileError implements Exception {
   NoSymbolsToCompileError();
 
   @override
@@ -18,7 +18,7 @@ class NoSymbolsToCompileError extends Error {
 }
 
 /// Thrown when the emit step is reached without compile output.
-class NoCompileResultToEmitError extends Error {
+class NoCompileResultToEmitError implements Exception {
   NoCompileResultToEmitError();
 
   @override
@@ -26,7 +26,7 @@ class NoCompileResultToEmitError extends Error {
 }
 
 /// Thrown when naming diagnostics contain one or more errors.
-class NamingDiagnosticsError extends Error {
+class NamingDiagnosticsError implements Exception {
   NamingDiagnosticsError(this.messages);
 
   /// Error messages reported by the naming stage.
