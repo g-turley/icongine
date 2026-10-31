@@ -8,4 +8,4 @@ analyzer:
     strict-inference: true
     strict-raw-types: true
   exclude:
-    - example/lib/generated/**
+    - example/**
