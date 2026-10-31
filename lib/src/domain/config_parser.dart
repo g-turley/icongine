@@ -1,15 +1,85 @@
 import 'config.dart';
 import 'font_format.dart';
+import 'generation_sets.dart';
 import 'png_tracing_mode.dart';
 
 /// Parses `pubspec.yaml` input into a [GenerationConfig].
 class GenerationConfigParser {
   const GenerationConfigParser();
 
+  /// Reads named sets, or exposes the original single configuration as default.
+  Map<String, GenerationConfig> parseSets(Map<String, Object?> pubspec) {
+    final section = _readMap(pubspec, 'icongine');
+    if (section == null || !section.containsKey('sets')) {
+      return {'default': parsePubspec(pubspec)};
+    }
+    if (section.length != 1) {
+      throw const FormatException(
+        'With named sets, put generation options inside each `icongine.sets` entry.',
+      );
+    }
+    final rawSets = section['sets'];
+    if (rawSets is Map<Object?, Object?> &&
+        rawSets.keys.any((key) => key is! String)) {
+      throw const FormatException('Icon set names must be strings.');
+    }
+    final sets = _readMap(section, 'sets');
+    if (sets == null || sets.isEmpty) {
+      throw const FormatException('"icongine.sets" must be a non-empty map.');
+    }
+    final result = <String, GenerationConfig>{};
+    for (final entry in sets.entries) {
+      validateSetName(entry.key);
+      final values = _readMap(sets, entry.key);
+      if (values == null || values.containsKey('sets')) {
+        throw FormatException(
+          'Set "${entry.key}" must contain generation options.',
+        );
+      }
+      final merged = <String, Object?>{...values};
+      // Fill each alias group only when no spelling was supplied.
+      final defaults = generationSetDefaults(entry.key);
+      final format = values['font_format'] ?? values['fontFormat'];
+      if (format is String &&
+          format.trim().toLowerCase() == 'ttf' &&
+          defaults['output_font'] is String) {
+        defaults['output_font'] = (defaults['output_font']! as String)
+            .replaceFirst(RegExp(r'\.otf$'), '.ttf');
+      }
+      for (final keys in const [
+        ['name', 'class_name', 'className'],
+        ['input_dir', 'inputDir'],
+        ['output_font', 'out_font_file', 'outFontFile'],
+        ['output_class', 'out_class_file', 'outClassFile'],
+      ]) {
+        if (!keys.any(merged.containsKey) && defaults.containsKey(keys.first)) {
+          merged[keys.first] = defaults[keys.first];
+        }
+      }
+      if (!merged.containsKey('font_format') &&
+          !merged.containsKey('fontFormat')) {
+        final output =
+            merged['output_font'] ??
+            merged['out_font_file'] ??
+            merged['outFontFile'];
+        if (output is String && output.toLowerCase().endsWith('.ttf')) {
+          merged['font_format'] = 'ttf';
+        }
+      }
+      result[entry.key] = parsePubspec({...pubspec, 'icongine': merged});
+    }
+    return result;
+  }
+
   /// Reads the `icongine` section from a decoded pubspec map.
   GenerationConfig parsePubspec(Map<String, Object?> pubspec) {
     final packageName = _read<String>(pubspec, 'name') ?? 'icongine_app';
     final section = _readMap(pubspec, 'icongine') ?? const <String, Object?>{};
+    if (section.containsKey('sets')) {
+      throw const FormatException(
+        'This pubspec has named sets. Use parseSets() or runAll().',
+      );
+    }
 
     final fontFormat = _parseFontFormat(
       _read<String>(section, 'font_format') ??

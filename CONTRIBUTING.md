@@ -60,10 +60,10 @@ intentional compiler change updates them.
 - `lib/src/pipeline/font/`: TTF, OTF, CFF, and SFNT encoding
 - `test/test_shapes/`: minimal regression fixtures for geometry behavior
 
-Read [the architecture guide](doc/architecture.md) before changing the
-compiler path. Prefer adding the smallest fixture that exposes a geometry bug;
-assert structural invariants instead of brittle byte-for-byte output unless
-the exact encoding is the behavior under test.
+Before changing the compiler path, trace the relevant stage from discovery
+through emission. Prefer adding the smallest fixture that exposes a geometry
+bug; assert structural invariants instead of brittle byte-for-byte output
+unless the exact encoding is the behavior under test.
 
 ## Compatibility
 

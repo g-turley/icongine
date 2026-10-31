@@ -7,6 +7,8 @@ import '../pipeline/errors.dart';
 import '../pipeline/generation_orchestrator.dart';
 import 'generate_command.dart';
 import 'generate_options.dart';
+import 'init_command.dart';
+import 'init_options.dart';
 import 'shape_debug_command.dart';
 
 /// Function signature used to invoke the generate command.
@@ -27,21 +29,11 @@ typedef ShapeDebugRunner =
 /// Top-level CLI facade for generation and debug commands.
 class IcongineCli {
   IcongineCli({GenerateRunner? runGenerate, ShapeDebugRunner? runShapeDebug})
-    : _runGenerate = runGenerate ?? _defaultRunGenerate,
+    : _runGenerate = runGenerate,
       _runShapeDebug = runShapeDebug ?? _defaultRunShapeDebug;
 
-  final GenerateRunner _runGenerate;
+  final GenerateRunner? _runGenerate;
   final ShapeDebugRunner _runShapeDebug;
-
-  static Future<GenerationReport> _defaultRunGenerate({
-    required String pubspecPath,
-    required GenerateConfigOverrides overrides,
-  }) {
-    return GenerateIconsCommand().run(
-      pubspecPath: pubspecPath,
-      overrides: overrides,
-    );
-  }
 
   static int _defaultRunShapeDebug(
     List<String> args, {
@@ -82,6 +74,22 @@ class IcongineCli {
     if (firstArg == 'generate') {
       return _runGenerateCommand(
         args.sublist(1),
+        stdoutWriteln: stdoutWriteln,
+        stderrWriteln: stderrWriteln,
+      );
+    }
+    if (firstArg == 'init') {
+      return runInitCommand(
+        args.sublist(1),
+        runGenerate: (pubspecPath, setName) => _runGenerateCommand(
+          [
+            '--config',
+            pubspecPath,
+            if (setName != null) ...['--set', setName],
+          ],
+          stdoutWriteln: stdoutWriteln,
+          stderrWriteln: stderrWriteln,
+        ),
         stdoutWriteln: stdoutWriteln,
         stderrWriteln: stderrWriteln,
       );
@@ -128,11 +136,23 @@ class IcongineCli {
     }
 
     try {
-      final report = await _runGenerate(
-        pubspecPath: parsed.pubspecPath,
-        overrides: parsed.overrides,
-      );
-      _writeReport(stdoutWriteln, report);
+      final customRunner = _runGenerate;
+      if (customRunner != null) {
+        final report = await customRunner(
+          pubspecPath: parsed.pubspecPath,
+          overrides: parsed.overrides,
+        );
+        _writeReport(stdoutWriteln, report);
+      } else {
+        await const GenerateIconsCommand().runAll(
+          pubspecPath: parsed.pubspecPath,
+          overrides: parsed.overrides,
+          onReport: (name, report) {
+            stdoutWriteln('Set: $name');
+            _writeReport(stdoutWriteln, report);
+          },
+        );
+      }
       return 0;
     } on NoIconsFoundError catch (error) {
       stderrWriteln('No SVG or PNG icons found in ${error.inputDir}.');
@@ -211,6 +231,7 @@ class IcongineCli {
     writeln('       icongine [generate options] [<pubspec_path>]');
     writeln('');
     writeln('Commands:');
+    writeln('  init           Set up icons and font registration for Flutter.');
     writeln('  generate       Generate icon fonts and the Dart IconData API.');
     writeln(
       '  debug-shape    Inspect a single SVG or test shape and print diagnostics.',
@@ -223,11 +244,15 @@ class IcongineCli {
       'Generate options can be used with or without the `generate` command.',
     );
     writeln('Examples:');
+    writeln(
+      '  icongine init --input-dir assets/icons --output-font assets/fonts/icons.otf',
+    );
     writeln('  icongine generate --config path/to/pubspec.yaml');
     writeln('  icongine debug-shape walk-outline');
     writeln('  icongine debug-shape path/to/problem_icon.svg');
     writeln('');
     writeln('Run `icongine generate --help` for generation options.');
+    writeln('Run `icongine init --help` for app setup options.');
     writeln('Run `icongine debug-shape --help` for shape diagnostics.');
     writeln('Run `icongine version` to print the installed version.');
   }
@@ -261,6 +286,7 @@ ArgParser _buildRootParser() {
       help: 'Print the installed icongine version.',
     );
   parser.addCommand('generate', buildGenerateParser());
+  parser.addCommand('init', buildInitParser());
   parser.addCommand('debug-shape');
   return parser;
 }

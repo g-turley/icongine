@@ -6,6 +6,7 @@ import 'package:yaml/yaml.dart';
 import '../domain/config.dart';
 import '../domain/config_parser.dart';
 import '../domain/font_format.dart';
+import '../domain/generation_sets.dart';
 import '../domain/png_tracing_mode.dart';
 import '../pipeline/builder.dart';
 import '../pipeline/generation_orchestrator.dart';
@@ -13,6 +14,7 @@ import '../pipeline/generation_orchestrator.dart';
 /// CLI or programmatic overrides applied on top of pubspec configuration.
 class GenerateConfigOverrides {
   const GenerateConfigOverrides({
+    this.setName,
     this.inputDir,
     this.outFontFile,
     this.outClassFile,
@@ -27,6 +29,8 @@ class GenerateConfigOverrides {
     this.generateIconMap,
   });
 
+  /// Selects one named set; null selects all when running a batch.
+  final String? setName;
   final String? inputDir;
   final String? outFontFile;
   final String? outClassFile;
@@ -42,6 +46,7 @@ class GenerateConfigOverrides {
 
   /// Whether no override values were provided.
   bool get isEmpty =>
+      setName == null &&
       inputDir == null &&
       outFontFile == null &&
       outClassFile == null &&
@@ -108,6 +113,24 @@ class GenerateIconsCommand {
     String pubspecPath = 'pubspec.yaml',
     GenerateConfigOverrides overrides = const GenerateConfigOverrides(),
   }) async {
+    final configs = await resolveConfigs(
+      pubspecPath: pubspecPath,
+      overrides: overrides,
+    );
+    if (configs.length != 1) {
+      throw const FormatException(
+        'Multiple icon sets are configured. '
+        'Use runAll() or select one with GenerateConfigOverrides(setName: ...).',
+      );
+    }
+    return configs.values.single;
+  }
+
+  /// Resolves and validates all destinations before selecting a set to run.
+  Future<Map<String, GenerationConfig>> resolveConfigs({
+    String pubspecPath = 'pubspec.yaml',
+    GenerateConfigOverrides overrides = const GenerateConfigOverrides(),
+  }) async {
     final pubspecFile = File(pubspecPath);
     final raw = await pubspecFile.readAsString();
     final yamlRoot = loadYaml(raw);
@@ -119,9 +142,41 @@ class GenerateIconsCommand {
     for (final entry in yamlRoot.entries) {
       pubspecMap[entry.key.toString()] = entry.value;
     }
-    final parsedConfig = configParser.parsePubspec(pubspecMap);
-    final resolvedConfig = overrides.applyTo(parsedConfig);
+    final configs = configParser.parseSets(pubspecMap);
+    final selected = overrides.setName;
+    if (selected != null && !configs.containsKey(selected)) {
+      throw FormatException(
+        'Unknown icon set "$selected". Available sets: '
+        '${configs.keys.join(', ')}.',
+      );
+    }
+    if (configs.length > 1 &&
+        selected == null &&
+        (overrides.inputDir != null ||
+            overrides.outFontFile != null ||
+            overrides.outClassFile != null ||
+            overrides.className != null)) {
+      throw const FormatException(
+        'Use --set when overriding paths or class names '
+        'with multiple icon sets.',
+      );
+    }
     final pubspecDirectory = pubspecFile.parent.path;
+    final resolved = <String, GenerationConfig>{};
+    for (final entry in configs.entries) {
+      final config = selected == null || selected == entry.key
+          ? overrides.applyTo(entry.value)
+          : entry.value;
+      resolved[entry.key] = _resolveConfigPaths(config, pubspecDirectory);
+    }
+    validateGenerationSets(resolved);
+    return selected == null ? resolved : {selected: resolved[selected]!};
+  }
+
+  GenerationConfig _resolveConfigPaths(
+    GenerationConfig resolvedConfig,
+    String pubspecDirectory,
+  ) {
     final configuredFontPath = resolvedConfig.outFontFile;
     return GenerationConfig(
       packageName: resolvedConfig.packageName,
@@ -169,6 +224,28 @@ class GenerateIconsCommand {
       overrides: overrides,
     );
     return runner.run(config);
+  }
+
+  /// Generates sets in configuration order, reporting each completed set.
+  ///
+  /// Validation precedes all writes. A source failure stops subsequent sets;
+  /// artifacts from completed sets remain available.
+  Future<Map<String, GenerationReport>> runAll({
+    String pubspecPath = 'pubspec.yaml',
+    GenerateConfigOverrides overrides = const GenerateConfigOverrides(),
+    void Function(String name, GenerationReport report)? onReport,
+  }) async {
+    final configs = await resolveConfigs(
+      pubspecPath: pubspecPath,
+      overrides: overrides,
+    );
+    final reports = <String, GenerationReport>{};
+    for (final entry in configs.entries) {
+      final report = await runner.run(entry.value);
+      reports[entry.key] = report;
+      onReport?.call(entry.key, report);
+    }
+    return reports;
   }
 
   String _resolvePathFromConfigDirectory({

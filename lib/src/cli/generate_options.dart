@@ -55,6 +55,7 @@ GenerateArguments parseGenerateArguments(List<String> args) {
     pubspecPath: pubspecPath,
     showHelp: parsed['help'] as bool,
     overrides: GenerateConfigOverrides(
+      setName: _readOptionalString(parsed, 'set', '--set'),
       inputDir: _readOptionalString(parsed, 'input-dir', '--input-dir'),
       outFontFile: _readOptionalString(parsed, 'output-font', '--output-font'),
       outClassFile: _readOptionalString(
@@ -85,6 +86,7 @@ void writeEffectiveConfig(
   writeln('  pubspec: ${args.pubspecPath}');
 
   final overrides = <String, Object?>{
+    'set': args.overrides.setName,
     'input_dir': args.overrides.inputDir,
     'output_font': args.overrides.outFontFile,
     'output_class': args.overrides.outClassFile,
@@ -119,6 +121,12 @@ ArgParser buildGenerateParser() {
       'config',
       valueHelp: 'path',
       help: 'Path to pubspec yaml file. Default: pubspec.yaml.',
+    )
+    ..addOption(
+      'set',
+      valueHelp: 'name',
+      help:
+          'Generate one named icon set. Default: generate all configured sets.',
     )
     ..addOption(
       'input-dir',

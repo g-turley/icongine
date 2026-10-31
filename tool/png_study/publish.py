@@ -1,12 +1,10 @@
-"""Build committed README figures and compact evidence from measured font renders."""
-import hashlib
+"""Build committed README figures and a study from measured font renders."""
 import json
 import statistics
 import sys
 from pathlib import Path
 
-import PIL
-from PIL import Image, ImageDraw, ImageFont, features
+from PIL import Image, ImageDraw, ImageFont
 from viewer import build_viewer
 
 
@@ -112,7 +110,6 @@ def scale_grid():
 
 
 def evidence():
-    result = []
     summaries = []
     for size in MANIFEST['sizes']:
         subset = [r for r in DATA if r['mode']=='smooth' and r['format']=='otf' and r['size']==size]
@@ -122,18 +119,6 @@ def evidence():
                               detail_iou=statistics.median(r['iou'] for r in detail),
                               detail_topology_matches=sum(r['topology']==r['reference_topology'] for r in detail),
                               detail_count=len(detail), median_segments=statistics.median(r['segments'] for r in subset)))
-    for r in DATA:
-        if r['mode']!='smooth' or r['format']!='otf':
-            continue
-        legacy = next(x for x in DATA if x['name']==r['name'] and x['mode']=='legacy' and x['format']=='otf')
-        result.append({**{key:r[key] for key in ['id','size','iou','alpha_mae','topology','reference_topology','segments','curves','format_iou']},
-                       'legacy_iou':legacy['iou']})
-    sources = {str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest()
-               for p in sorted((ROOT/'inputs').glob('*.svg'))}
-    document = dict(method='SVGs independently rasterized by Sharp/librsvg. Fonts rendered by FreeType at 1024px and downsampled to 256px. IoU uses 50% alpha; topology counts foreground islands and holes.',
-                    versions=dict(pillow=PIL.__version__, freetype=features.version_module('freetype2'), svg=MANIFEST.get('renderer')),
-                    source_sha256=sources, summary=summaries, results=result)
-    Path('doc/png-tracing-results.json').write_text(json.dumps(document,indent=2)+'\n')
     table = '\n'.join(f"| {r['size']} | {r['simple_iou']:.1%} | {r['detail_iou']:.1%} | {r['detail_topology_matches']}/{r['detail_count']} | {r['median_segments']:.0f} |" for r in summaries)
     report = f'''# PNG tracing scale study
 
@@ -205,10 +190,9 @@ To inspect live font rendering with size and format controls, serve the output
 with `python -m http.server 5175 --bind 127.0.0.1 --directory build/png_study`
 and open `http://127.0.0.1:5175`.
 
-The study writes inputs, fonts, and individual renders to `build/png_study/`.
-The final command refreshes the README images, this report, and the
-[measurements](png-tracing-results.json), including source hashes and renderer
-versions. Sharp/librsvg supplies independent SVG rasterization; Pillow/FreeType
+The study writes inputs, fonts, individual renders, and measurements to
+`build/png_study/`. The final command refreshes the README images and this
+report. Sharp/librsvg supplies independent SVG rasterization; Pillow/FreeType
 renders the actual fonts; NumPy measures their masks. No Python or Node runtime
 is needed by the library itself. Reruns on another renderer version or platform
 may differ slightly.
@@ -225,4 +209,4 @@ evidence()
 (ROOT / 'index.html').write_text(build_viewer(MANIFEST, DATA), encoding='utf-8')
 for name in ['source-to-font.png', 'png-resolution.png']:
     (ROOT / name).write_bytes((DEST / name).read_bytes())
-print('Wrote README figures and doc/png-tracing-results.json.')
+print('Wrote README figures and doc/png-tracing-study.md.')
